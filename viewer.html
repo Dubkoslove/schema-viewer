@@ -1,0 +1,3352 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>JSON Schema Visualizer and editor</title>
+
+    <meta name="author" content="Dominik Dubovsky"/>
+    <meta name="organization" content="Masaryk University"/>
+    <meta name="title" content="JSON Schema Visualizer and editor"/>
+
+    <style>
+        :root {
+            --bg: #fbfaf7;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --muted2: #94a3b8;
+            --border: rgba(15, 23, 42, .10);
+            --accent: #3b82f6;
+            --accentSoft: rgba(59, 130, 246, .12);
+            --good: #10b981;
+            --bad: #ef4444;
+            --shadow: 0 8px 22px rgba(15, 23, 42, .08);
+            --surface: #f8fafc;
+            --surface2: #ffffff;
+            --scrollThumb: rgba(15, 23, 42, .12);
+            --headerBg: rgba(251, 250, 247, .82);
+            --tooltipBg: #ffffff;
+            --tooltipBorder: rgba(15, 23, 42, .14);
+            --focusRing: rgba(59, 130, 246, .10);
+            --radius: 14px;
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        }
+
+        html[data-theme="dark"] {
+            --bg: #0b1020;
+            --card: rgba(18, 26, 51, .85);
+            --text: #e7ecff;
+            --muted: #aeb8e6;
+            --muted2: #8290d6;
+            --border: rgba(255, 255, 255, .12);
+            --accent: #7aa2ff;
+            --accentSoft: rgba(122, 162, 255, .12);
+            --good: #5eead4;
+            --bad: #fb7185;
+            --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+            --surface: rgba(255, 255, 255, .06);
+            --surface2: rgba(255, 255, 255, .04);
+            --scrollThumb: rgba(255, 255, 255, .10);
+            --headerBg: rgba(11, 16, 32, .72);
+            --tooltipBg: rgba(5, 8, 18, .95);
+            --tooltipBorder: rgba(255, 255, 255, .18);
+            --focusRing: rgba(122, 162, 255, .15);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--sans);
+            color: var(--text);
+            background: radial-gradient(900px 600px at 20% 5%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 55%),
+            radial-gradient(700px 500px at 85% 18%, color-mix(in srgb, var(--good) 16%, transparent), transparent 55%),
+            linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 70%, #f6f7fb 30%));
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 18px 14px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--headerBg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .header-title-row h1 {
+            margin: 0 0 0 0;
+        }
+
+        .header-collapsible {
+            overflow: hidden;
+            max-height: 500px;
+            transition: max-height .35s ease, opacity .25s ease, margin .3s ease;
+            opacity: 1;
+            margin-top: 10px;
+        }
+
+        .header-collapsible.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
+            pointer-events: none;
+        }
+
+        .wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 16px;
+            margin: 0;
+            letter-spacing: .2px
+        }
+
+        .bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: var(--radius);
+            padding: 10px;
+        }
+
+        input[type="file"] {
+            color: var(--muted);
+            max-width: 420px
+        }
+
+        input[type="file"]::file-selector-button {
+            background: var(--accentSoft);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+            color: color-mix(in srgb, var(--text) 92%, #0f172a 8%);
+            padding: 8px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 650;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: color-mix(in srgb, var(--accent) 18%, transparent);
+        }
+
+        input[type="search"], input[type="text"], select, textarea {
+            background: var(--surface);
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            color: var(--text);
+            padding: 9px 12px;
+            border-radius: 12px;
+            outline: none;
+            font-family: var(--sans);
+        }
+
+        textarea {
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.4;
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        input[type="search"]:focus, input[type="text"]:focus, select:focus, textarea:focus {
+            border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+            box-shadow: 0 0 0 4px var(--focusRing);
+            background: var(--surface2);
+        }
+
+        input[type="search"] {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .btn {
+            background: var(--surface);
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 650;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .btn:hover {
+            background: var(--surface2);
+            border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+            box-shadow: 0 6px 16px color-mix(in srgb, #0f172a 10%, transparent);
+        }
+
+        .btn.danger {
+            border-color: color-mix(in srgb, var(--bad) 38%, var(--border));
+            background: color-mix(in srgb, var(--bad) 14%, var(--surface));
+            color: color-mix(in srgb, var(--bad) 86%, var(--text));
+        }
+
+        .btn.primary {
+            border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+            background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+        }
+
+        .btn.saveDirty {
+            border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+            background: color-mix(in srgb, var(--bad) 14%, var(--surface));
+            color: color-mix(in srgb, var(--bad) 88%, var(--text));
+            box-shadow: 0 10px 26px color-mix(in srgb, var(--bad) 18%, transparent);
+        }
+
+        .btn.saveDirty:hover {
+            background: color-mix(in srgb, var(--bad) 18%, var(--surface2));
+            border-color: color-mix(in srgb, var(--bad) 55%, var(--border));
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface);
+            padding: 6px 10px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .pill strong {
+            color: var(--text)
+        }
+
+        main {
+            padding: 14px;
+        }
+
+        .grid {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: grid;
+            gap: 14px;
+            grid-template-columns: 360px 1fr;
+        }
+
+        @media (max-width: 1060px) {
+            .grid {
+                grid-template-columns:1fr;
+            }
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: var(--radius);
+        }
+
+        .panel {
+            padding: 12px;
+        }
+
+        .panel h2 {
+            margin: 0 0 10px;
+            font-size: 12px;
+            letter-spacing: .2px;
+            color: var(--muted);
+            font-weight: 800;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .tree {
+            max-height: calc(100vh - 300px);
+            overflow: auto;
+            padding-right: 6px;
+            position: relative;
+            padding-left: 10px;
+        }
+
+        .tree::-webkit-scrollbar {
+            width: 10px
+        }
+
+        .tree::-webkit-scrollbar-thumb {
+            background: var(--scrollThumb);
+            border-radius: 999px
+        }
+
+        .nodeGroup {
+            position: relative;
+            margin-left: 0;
+            padding-left: 14px;
+        }
+
+        .nodeGroup.depth0 {
+            padding-left: 0;
+        }
+
+        .nodeGroup::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 6px;
+            border-left: 2px dotted color-mix(in srgb, var(--border) 92%, transparent);
+            opacity: .95;
+            pointer-events: none;
+        }
+
+        .nodeGroup.depth0::before {
+            display: none;
+        }
+
+        .node {
+            border: 1px solid transparent;
+            padding: 9px 10px;
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, opacity .12s ease;
+        }
+
+        .node.dragging {
+            opacity: .55;
+        }
+
+        .node.dropBefore::before,
+        .node.dropAfter::after {
+            content: "";
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            height: 0;
+            border-top: 3px solid var(--accent);
+            border-radius: 999px;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .node.dropBefore::before {
+            top: -2px;
+        }
+
+        .node.dropAfter::after {
+            bottom: -2px;
+        }
+
+        .node:hover {
+            background: var(--surface);
+            border-color: color-mix(in srgb, var(--border) 70%, transparent);
+        }
+
+        .node.active {
+            background: var(--accentSoft);
+            border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+        }
+
+        .node .toggle {
+            width: 18px;
+            height: 18px;
+            border-radius: 8px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: color-mix(in srgb, var(--text) 85%, var(--muted) 15%);
+            font-size: 12px;
+            margin-top: 1px;
+            flex: 0 0 auto;
+        }
+
+        .node .toggle.hidden {
+            visibility: hidden;
+        }
+
+        .k {
+            flex: 1;
+            min-width: 0
+        }
+
+        .k .name {
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 800;
+            word-break: break-word
+        }
+
+        .k .label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        .t {
+            font-size: 11px;
+            color: color-mix(in srgb, var(--text) 80%, var(--muted) 20%);
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface);
+            padding: 2px 8px;
+            border-radius: 999px;
+            white-space: nowrap;
+            margin-top: 1px;
+            flex: 0 0 auto;
+        }
+
+        .children {
+            margin-left: 0;
+            padding-left: 0;
+        }
+
+        .content {
+            padding: 14px;
+        }
+
+        .empty {
+            padding: 18px;
+            color: var(--muted);
+            border: 1px dashed color-mix(in srgb, var(--border) 95%, transparent);
+            border-radius: 16px;
+            background: var(--surface2);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .tab {
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface);
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 12px;
+            user-select: none;
+        }
+
+        .tab.active {
+            background: var(--accentSoft);
+            border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+            color: color-mix(in srgb, var(--accent) 85%, var(--text));
+        }
+
+        .crumbs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px 12px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            border-radius: 14px;
+            background: var(--surface);
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .crumb {
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface2);
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text);
+            font-family: var(--mono);
+            font-weight: 700;
+        }
+
+        .crumb:hover {
+            border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+            box-shadow: 0 6px 16px color-mix(in srgb, #0f172a 10%, transparent);
+        }
+
+        .sep {
+            color: color-mix(in srgb, var(--text) 25%, transparent);
+            font-weight: 900;
+        }
+
+        .field {
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface2);
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 260px;
+            flex: 1;
+        }
+
+        .title .path {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted2)
+        }
+
+        .title .main {
+            font-weight: 900;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface);
+            color: color-mix(in srgb, var(--text) 85%, var(--muted) 15%);
+            white-space: nowrap;
+        }
+
+        .badge.req {
+            border-color: color-mix(in srgb, var(--bad) 30%, transparent);
+            background: color-mix(in srgb, var(--bad) 12%, transparent);
+            color: color-mix(in srgb, var(--bad) 75%, var(--text));
+        }
+
+        .badge.type {
+            border-color: color-mix(in srgb, var(--good) 30%, transparent);
+            background: color-mix(in srgb, var(--good) 12%, transparent);
+            color: color-mix(in srgb, var(--good) 75%, var(--text));
+        }
+
+        .kv {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 8px 12px;
+            align-items: start;
+        }
+
+        .kv .k2 {
+            color: var(--muted);
+            font-weight: 800;
+            font-size: 12px
+        }
+
+        .kv .v2 {
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.35
+        }
+
+        .tooltip {
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            color: color-mix(in srgb, var(--accent) 85%, var(--text));
+            font-size: 12px;
+            cursor: help;
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .tooltip[data-tip]:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 26px;
+            width: min(520px, 80vw);
+            background: var(--tooltipBg);
+            border: 1px solid var(--tooltipBorder);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            white-space: normal;
+            z-index: 999;
+            line-height: 1.3;
+            font-size: 12px;
+        }
+
+        .childrenTitle {
+            margin: 14px 0 8px;
+            color: var(--muted);
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .childCard {
+            padding: 10px 12px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            border-radius: 14px;
+            background: var(--surface);
+            cursor: pointer;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .childCard:hover {
+            background: var(--surface2);
+            box-shadow: 0 6px 16px color-mix(in srgb, #0f172a 10%, transparent);
+            border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+        }
+
+        .childCard .cname {
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 900;
+            word-break: break-word
+        }
+
+        .childCard .clabel {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px
+        }
+
+        .chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--surface);
+            font-family: var(--mono);
+            color: var(--text);
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(320px, .95fr);
+            gap: 16px;
+            margin-top: 12px;
+            align-items: start;
+        }
+
+        @media (max-width: 1080px) {
+            .split {
+                grid-template-columns:1fr;
+            }
+        }
+
+        .formRow {
+            display: grid;
+            grid-template-columns: 190px minmax(0, 1fr);
+            gap: 8px 12px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .formRow label {
+            color: var(--muted);
+            font-weight: 900;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            line-height: 1.2;
+        }
+
+        .checkRow {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkRow input {
+            transform: translateY(1px);
+        }
+
+        .smallHelp {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .mono {
+            font-family: var(--mono);
+        }
+
+        .toast {
+            position: fixed;
+            right: 14px;
+            bottom: 14px;
+            max-width: min(520px, 92vw);
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            background: var(--card);
+            box-shadow: var(--shadow);
+            color: var(--text);
+            font-size: 12px;
+            display: none;
+            z-index: 9999;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        .toast b {
+            font-weight: 900;
+        }
+
+        .topNote {
+            display: none;
+            margin: 0 auto 12px;
+            max-width: 1280px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--bad) 35%, var(--border));
+            background: color-mix(in srgb, var(--bad) 14%, var(--card));
+            color: color-mix(in srgb, var(--bad) 88%, var(--text));
+            box-shadow: var(--shadow);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .topNote b {
+            font-weight: 900;
+        }
+
+        .metaList {
+            margin-top: 10px;
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            border-radius: 14px;
+            background: var(--surface);
+            padding: 10px;
+        }
+
+        .metaRow {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .metaRow:first-child {
+            margin-top: 0;
+        }
+
+        .metaRow input[type="text"] {
+            width: 100%;
+        }
+
+        /* --- DataCite picker trigger button --- */
+        .datacitePicker { position: relative; }
+
+        .dcPickerBtn {
+            width: 100%;
+            min-height: 44px;
+            text-align: left;
+            justify-content: space-between;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--text);
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .dcPickerBtn .muted { color: var(--muted2); }
+        .dcPickerBtn .arrow { margin-left: auto; color: var(--muted2); font-size: 11px; }
+        .dcPicked { font-family: var(--mono); }
+
+        /* --- DataCite modal overlay --- */
+        .dcModalBackdrop {
+            position: fixed; inset: 0;
+            background: rgba(15,23,42,.52);
+            display: none; align-items: center; justify-content: center;
+            padding: 18px; z-index: 10100;
+        }
+        .dcModalBackdrop.show { display: flex; }
+
+        .dcModalCard {
+            width: min(980px, 96vw);
+            max-height: min(88vh, 920px);
+            display: flex; flex-direction: column;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .dcModalHeader {
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 10px;
+            flex-shrink: 0;
+        }
+        .dcModalHeader .dcModalTopRow {
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        }
+        .dcModalHeader h3 { margin: 0; font-size: 17px; }
+        .dcModalHeader .dcModalClose {
+            font-size: 18px; line-height: 1; width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text); cursor: pointer;
+        }
+
+        .dcSearchRow {
+            display: flex; gap: 8px; align-items: center;
+        }
+        .dcSearchRow input {
+            flex: 1; min-height: 38px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--surface);
+            padding: 6px 12px; font-size: 13px; color: var(--text);
+            outline: none;
+        }
+        .dcSearchRow input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focusRing); }
+        .dcClearBtn {
+            padding: 6px 14px; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text); cursor: pointer; font-size: 12px;
+        }
+
+        .dcModalBody {
+            flex: 1; overflow-y: auto; padding: 10px 16px 16px;
+            scrollbar-width: thin;
+        }
+
+        /* Accordion sections */
+        .dcSection {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            background: var(--surface2);
+        }
+        .dcSection.hidden { display: none; }
+
+        .dcSectionHead {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; cursor: pointer;
+            background: var(--surface);
+            border: none; width: 100%; text-align: left;
+            color: var(--text); font-size: 14px; font-weight: 700;
+            transition: background .12s;
+        }
+        .dcSectionHead:hover { background: var(--accentSoft); }
+        .dcSectionHead .dcChevron {
+            font-size: 11px; color: var(--muted2);
+            transition: transform .15s ease;
+            flex-shrink: 0;
+        }
+        .dcSection.open .dcSectionHead .dcChevron { transform: rotate(90deg); }
+        .dcSectionHead .dcSectionOcc {
+            margin-left: auto; font-size: 11px; font-weight: 400;
+            color: var(--muted2); font-family: var(--mono);
+        }
+        .dcSectionHead .dcReqBadge {
+            font-size: 10px; font-weight: 700; padding: 2px 7px;
+            border-radius: 6px; text-transform: uppercase; letter-spacing: .4px;
+            flex-shrink: 0;
+        }
+        .dcReqBadge.mandatory { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+        .dcReqBadge.recommended { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+        .dcReqBadge.optional { background: var(--surface); color: var(--muted2); }
+
+        .dcSectionBody {
+            display: none; padding: 4px 10px 10px;
+        }
+        .dcSection.open .dcSectionBody { display: block; }
+
+        /* Leaf items inside sections */
+        .dcLeaf {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 14px; border-radius: 10px;
+            cursor: pointer; border: none; width: 100%;
+            text-align: left; background: transparent;
+            color: var(--text); font-size: 13px;
+            transition: background .1s;
+        }
+        .dcLeaf:hover { background: var(--accentSoft); }
+        .dcLeaf.selected { background: var(--accentSoft); outline: 2px solid var(--accent); }
+        .dcLeaf .dcLeafPath {
+            margin-left: auto; font-size: 11px;
+            color: var(--muted2); font-family: var(--mono);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 340px;
+        }
+
+        /* Subsection nesting */
+        .dcSubSection { margin: 4px 0 4px 12px; border-left: 2px solid var(--border); padding-left: 10px; }
+        .dcSubSection.hidden { display: none; }
+        .dcSubHead {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 12px; cursor: pointer;
+            background: transparent; border: none; width: 100%; text-align: left;
+            color: var(--muted); font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .3px;
+        }
+        .dcSubHead .dcChevron { font-size: 10px; }
+        .dcSubSection.open .dcSubHead .dcChevron { transform: rotate(90deg); }
+        .dcSubChildren { display: none; }
+        .dcSubSection.open .dcSubChildren { display: block; }
+
+        .dcModalFooter {
+            padding: 12px 20px; border-top: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            flex-shrink: 0; flex-wrap: wrap;
+        }
+        .dcModalFooter .dcFooterSelected {
+            font-size: 12px; color: var(--muted);
+            font-family: var(--mono);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px;
+        }
+        .dcModalFooter .dcFooterBtns { display: flex; gap: 8px; }
+
+        .saveHint {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid color-mix(in srgb, var(--bad) 35%, var(--border));
+            background: color-mix(in srgb, var(--bad) 12%, var(--surface2));
+            color: color-mix(in srgb, var(--bad) 88%, var(--text));
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .saveHint b {
+            font-weight: 900;
+        }
+
+        .filenameBox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 240px;
+            flex: 1 1 280px;
+        }
+
+        .filenameBox input {
+            width: 100%;
+        }
+
+        .modalBackdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, .45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            z-index: 10000;
+        }
+
+        .modalBackdrop.show {
+            display: flex;
+        }
+
+        .modalCard {
+            width: min(920px, 96vw);
+            max-height: min(90vh, 980px);
+            overflow: auto;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: 20px;
+            padding: 16px;
+        }
+
+        .modalHeader {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .modalTitle {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .modalTitle h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .modalClose {
+            font-size: 18px;
+            line-height: 1;
+            width: 38px;
+            height: 38px;
+            justify-content: center;
+        }
+
+        .modalActions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="wrap">
+        <div class="header-title-row">
+            <h1>JSON Schema Visualizer and editor</h1>
+            <button class="btn" id="headerCollapseToggle" title="Toggle toolbar visibility">
+                <span id="headerCollapseIcon">▲</span>
+                <span id="headerCollapseLabel">Hide toolbar</span>
+            </button>
+        </div>
+        <div id="headerCollapsible" class="header-collapsible">
+            <div class="bar">
+                <input id="file" type="file" accept=".json,application/json"/>
+                <input id="search" type="search" placeholder="Search by field name, label, description…"/>
+                <button class="btn" id="newSchema">New schema</button>
+                <button class="btn" id="expandAll">Expand all</button>
+                <button class="btn" id="collapseAll">Collapse all</button>
+                <button class="btn" id="themeToggle" title="Toggle light / dark">
+                    <span id="themeIcon">🌙</span>
+                    <span id="themeLabel">Dark</span>
+                </button>
+                <span class="pill">Loaded: <strong id="loaded">none</strong></span>
+                <span class="pill">Fields: <strong id="count">0</strong></span>
+                <div class="filenameBox">
+                    <input id="exportName" type="text" placeholder="Export file name (without .json)"/>
+                </div>
+                <button class="btn primary" id="exportSchema">Export JSON</button>
+            </div>
+            <div class="bar" style="margin-top:10px;">
+                <span class="pill">DataCite target: <strong>4.7 JSON</strong></span>
+                <button class="btn" id="checkDataciteMappings">Check required DataCite mappings</button>
+                <button class="btn" id="downloadDataciteScript">Generate Python mapping script</button>
+                <span class="smallHelp">The checker looks for the required DataCite 4.7 metadata properties in the JSON representation used by the documentation examples.</span>
+            </div>
+            <div class="bar" style="margin-top:10px;">
+                <button class="btn" id="downloadRandomTestJson">Generate random test JSON</button>
+                <span class="smallHelp">Creates a sample JSON document with all fields from your current custom schema and fills it with random test values.</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main>
+    <div id="topNote" class="topNote">
+        <b>Unsaved changes:</b> This tool does not save to disk automatically. Use <b>Export JSON</b> (or copy <b>Raw
+        JSON</b>) to keep your edits.
+    </div>
+
+    <div class="grid">
+        <section class="card panel">
+            <h2>
+                <span>Fields</span>
+                <span style="font-size:11px; font-weight:800; color:var(--muted2)">click ▸ to expand</span>
+            </h2>
+
+            <div class="tree" id="tree"></div>
+
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn primary" id="addTopField">+ Add top-level field</button>
+            </div>
+            <div class="smallHelp" style="margin-top:10px;">
+                Select a field to view/edit it. After editing, export to save your changes.
+            </div>
+        </section>
+
+        <section class="card content" id="content">
+            <div class="empty">
+                Choose a JSON file or click <b>New schema</b>.
+            </div>
+        </section>
+    </div>
+</main>
+
+<div class="modalBackdrop" id="fieldModalBackdrop" aria-hidden="true">
+    <div class="modalCard">
+        <div class="modalHeader">
+            <div class="modalTitle">
+                <h3 id="fieldModalTitle">Field form</h3>
+                <div class="smallHelp" id="fieldModalSubtitle"></div>
+            </div>
+            <button class="btn modalClose" id="fieldModalClose" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="fieldModalBody"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    (() => {
+        const elFile = document.getElementById('file');
+        const elSearch = document.getElementById('search');
+        const elTree = document.getElementById('tree');
+        const elContent = document.getElementById('content');
+        const elLoaded = document.getElementById('loaded');
+        const elCount = document.getElementById('count');
+        const btnExpandAll = document.getElementById('expandAll');
+        const btnCollapseAll = document.getElementById('collapseAll');
+        const btnNew = document.getElementById('newSchema');
+        const btnExport = document.getElementById('exportSchema');
+        const btnCheckDatacite = document.getElementById('checkDataciteMappings');
+        const btnDownloadDataciteScript = document.getElementById('downloadDataciteScript');
+        const btnDownloadRandomTestJson = document.getElementById('downloadRandomTestJson');
+
+        /* ── Header collapse toggle ── */
+        const headerCollapsible = document.getElementById('headerCollapsible');
+        const headerCollapseToggle = document.getElementById('headerCollapseToggle');
+        const headerCollapseIcon = document.getElementById('headerCollapseIcon');
+        const headerCollapseLabel = document.getElementById('headerCollapseLabel');
+
+        headerCollapseToggle.addEventListener('click', () => {
+            const isCollapsed = headerCollapsible.classList.toggle('collapsed');
+            headerCollapseIcon.textContent = isCollapsed ? '▼' : '▲';
+            headerCollapseLabel.textContent = isCollapsed ? 'Show toolbar' : 'Hide toolbar';
+        });
+        const btnAddTop = document.getElementById('addTopField');
+        const exportNameInput = document.getElementById('exportName');
+        const toastEl = document.getElementById('toast');
+        const btnTheme = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeLabel = document.getElementById('themeLabel');
+        const topNote = document.getElementById('topNote');
+        const fieldModalBackdrop = document.getElementById('fieldModalBackdrop');
+        const fieldModalBody = document.getElementById('fieldModalBody');
+        const fieldModalTitle = document.getElementById('fieldModalTitle');
+        const fieldModalSubtitle = document.getElementById('fieldModalSubtitle');
+        const fieldModalClose = document.getElementById('fieldModalClose');
+
+        const HELP = {
+            fieldName: "Name of the field in the datatype model.",
+            type: "Type of the value stored.",
+            label: "Text that is displayed in the repository.",
+            tooltip: "Hovering description in the repository.",
+            description: "Meaning/value's description of the field.",
+            required: "Whether the field is required or not.",
+            enumValues: "Set of values that the field can contain.",
+            customMeta: "Custom metadata stored as x-<key>: <value> in JSON.",
+            dataciteMap: "Optional mapping from this custom field to a DataCite 4.7 JSON field. These mappings are used by the required-field checker and by the generated Python transformation script."
+        };
+
+        let schemaData = null;
+        let root = null;
+        let flat = [];
+        let activeId = null;
+        let expanded = new Set();
+        let activeTab = "view";
+        let dirty = false;
+        let fieldDirty = false;
+        let modalState = null;
+        let dragState = {draggedId: null, overId: null, position: null};
+
+        const THEME_KEY = "schema_viewer_theme";
+        const LAST_SCHEMA_KEY = "schema_editor_autosave";
+        const EXPORT_NAME_KEY = "schema_editor_export_name";
+
+
+        const DATACITE_FIELD_TREE = [
+            {value: "", label: "— no DataCite mapping —"},
+            {value: "doi", label: "Identifier (DOI)", meta: "doi", obligation: "mandatory", sectionId: "1"},
+            {
+                label: "Creators", obligation: "mandatory", sectionId: "2", children: [
+                    {value: "creators", label: "creators"},
+                    {value: "creators[].name", label: "name"},
+                    {value: "creators[].nameType", label: "nameType"},
+                    {value: "creators[].givenName", label: "givenName"},
+                    {value: "creators[].familyName", label: "familyName"},
+                    {
+                        label: "nameIdentifiers", children: [
+                            {value: "creators[].nameIdentifiers[].nameIdentifier", label: "nameIdentifier"},
+                            {value: "creators[].nameIdentifiers[].nameIdentifierScheme", label: "nameIdentifierScheme"},
+                            {value: "creators[].nameIdentifiers[].schemeUri", label: "schemeUri"}
+                        ]
+                    },
+                    {
+                        label: "affiliation", children: [
+                            {value: "creators[].affiliation[]", label: "affiliation[]"},
+                            {value: "creators[].affiliation[].name", label: "name"},
+                            {value: "creators[].affiliation[].affiliationIdentifier", label: "affiliationIdentifier"},
+                            {value: "creators[].affiliation[].affiliationIdentifierScheme", label: "affiliationIdentifierScheme"},
+                            {value: "creators[].affiliation[].schemeUri", label: "schemeUri"}
+                        ]
+                    }
+                ]
+            },
+            {
+                label: "Titles", obligation: "mandatory", sectionId: "3", children: [
+                    {value: "titles", label: "titles"},
+                    {value: "titles[].title", label: "title"},
+                    {value: "titles[].titleType", label: "titleType"},
+                    {value: "titles[].lang", label: "lang"}
+                ]
+            },
+            {
+                label: "Publisher", obligation: "mandatory", sectionId: "4", children: [
+                    {value: "publisher", label: "publisher"},
+                    {value: "publisher.name", label: "name"},
+                    {value: "publisher.publisherIdentifier", label: "publisherIdentifier"},
+                    {value: "publisher.publisherIdentifierScheme", label: "publisherIdentifierScheme"},
+                    {value: "publisher.schemeUri", label: "schemeUri"},
+                    {value: "publisher.lang", label: "lang"}
+                ]
+            },
+            {value: "publicationYear", label: "PublicationYear", meta: "publicationYear", obligation: "mandatory", sectionId: "5"},
+            {
+                label: "ResourceType", obligation: "mandatory", sectionId: "10", children: [
+                    {value: "types", label: "types"},
+                    {value: "types.resourceType", label: "resourceType"},
+                    {value: "types.resourceTypeGeneral", label: "resourceTypeGeneral"}
+                ]
+            },
+            {
+                label: "Subjects", obligation: "recommended", sectionId: "6", children: [
+                    {value: "subjects", label: "subjects"},
+                    {value: "subjects[].subject", label: "subject"},
+                    {value: "subjects[].subjectScheme", label: "subjectScheme"},
+                    {value: "subjects[].schemeUri", label: "schemeUri"},
+                    {value: "subjects[].valueUri", label: "valueUri"},
+                    {value: "subjects[].classificationCode", label: "classificationCode"},
+                    {value: "subjects[].lang", label: "lang"}
+                ]
+            },
+            {
+                label: "Contributors", obligation: "recommended", sectionId: "7", children: [
+                    {value: "contributors", label: "contributors"},
+                    {value: "contributors[].contributorType", label: "contributorType"},
+                    {value: "contributors[].name", label: "name"},
+                    {value: "contributors[].nameType", label: "nameType"},
+                    {value: "contributors[].givenName", label: "givenName"},
+                    {value: "contributors[].familyName", label: "familyName"},
+                    {
+                        label: "nameIdentifiers", children: [
+                            {value: "contributors[].nameIdentifiers[].nameIdentifier", label: "nameIdentifier"},
+                            {value: "contributors[].nameIdentifiers[].nameIdentifierScheme", label: "nameIdentifierScheme"},
+                            {value: "contributors[].nameIdentifiers[].schemeUri", label: "schemeUri"}
+                        ]
+                    },
+                    {
+                        label: "affiliation", children: [
+                            {value: "contributors[].affiliation[]", label: "affiliation[]"},
+                            {value: "contributors[].affiliation[].name", label: "name"},
+                            {value: "contributors[].affiliation[].affiliationIdentifier", label: "affiliationIdentifier"},
+                            {value: "contributors[].affiliation[].affiliationIdentifierScheme", label: "affiliationIdentifierScheme"},
+                            {value: "contributors[].affiliation[].schemeUri", label: "schemeUri"}
+                        ]
+                    }
+                ]
+            },
+            {
+                label: "Dates", obligation: "recommended", sectionId: "8", children: [
+                    {value: "dates", label: "dates"},
+                    {value: "dates[].date", label: "date"},
+                    {value: "dates[].dateType", label: "dateType"},
+                    {value: "dates[].dateInformation", label: "dateInformation"}
+                ]
+            },
+            {value: "language", label: "Language", meta: "language", obligation: "optional", sectionId: "9"},
+            {
+                label: "AlternateIdentifiers", obligation: "optional", sectionId: "11", children: [
+                    {value: "alternateIdentifiers", label: "alternateIdentifiers"},
+                    {value: "alternateIdentifiers[].alternateIdentifier", label: "alternateIdentifier"},
+                    {value: "alternateIdentifiers[].alternateIdentifierType", label: "alternateIdentifierType"}
+                ]
+            },
+            {
+                label: "RelatedIdentifiers", obligation: "recommended", sectionId: "12", children: [
+                    {value: "relatedIdentifiers", label: "relatedIdentifiers"},
+                    {value: "relatedIdentifiers[].relatedIdentifier", label: "relatedIdentifier"},
+                    {value: "relatedIdentifiers[].relatedIdentifierType", label: "relatedIdentifierType"},
+                    {value: "relatedIdentifiers[].relationType", label: "relationType"},
+                    {value: "relatedIdentifiers[].relatedMetadataScheme", label: "relatedMetadataScheme"},
+                    {value: "relatedIdentifiers[].schemeUri", label: "schemeUri"},
+                    {value: "relatedIdentifiers[].schemeType", label: "schemeType"},
+                    {value: "relatedIdentifiers[].resourceTypeGeneral", label: "resourceTypeGeneral"}
+                ]
+            },
+            {
+                label: "Sizes", obligation: "optional", sectionId: "13", children: [
+                    {value: "sizes[]", label: "sizes[]"}
+                ]
+            },
+            {
+                label: "Formats", obligation: "optional", sectionId: "14", children: [
+                    {value: "formats[]", label: "formats[]"}
+                ]
+            },
+            {value: "version", label: "Version", meta: "version", obligation: "optional", sectionId: "15"},
+            {
+                label: "Rights", obligation: "optional", sectionId: "16", children: [
+                    {value: "rightsList", label: "rightsList"},
+                    {value: "rightsList[].rights", label: "rights"},
+                    {value: "rightsList[].rightsUri", label: "rightsUri"},
+                    {value: "rightsList[].rightsIdentifier", label: "rightsIdentifier"},
+                    {value: "rightsList[].rightsIdentifierScheme", label: "rightsIdentifierScheme"},
+                    {value: "rightsList[].schemeUri", label: "schemeUri"},
+                    {value: "rightsList[].lang", label: "lang"}
+                ]
+            },
+            {
+                label: "Descriptions", obligation: "recommended", sectionId: "17", children: [
+                    {value: "descriptions", label: "descriptions"},
+                    {value: "descriptions[].description", label: "description"},
+                    {value: "descriptions[].descriptionType", label: "descriptionType"},
+                    {value: "descriptions[].lang", label: "lang"}
+                ]
+            },
+            {
+                label: "GeoLocations", obligation: "recommended", sectionId: "18", children: [
+                    {value: "geoLocations", label: "geoLocations"},
+                    {value: "geoLocations[].geoLocationPlace", label: "geoLocationPlace"},
+                    {
+                        label: "geoLocationPoint", children: [
+                            {value: "geoLocations[].geoLocationPoint.pointLongitude", label: "pointLongitude"},
+                            {value: "geoLocations[].geoLocationPoint.pointLatitude", label: "pointLatitude"}
+                        ]
+                    },
+                    {
+                        label: "geoLocationBox", children: [
+                            {value: "geoLocations[].geoLocationBox.westBoundLongitude", label: "westBoundLongitude"},
+                            {value: "geoLocations[].geoLocationBox.eastBoundLongitude", label: "eastBoundLongitude"},
+                            {value: "geoLocations[].geoLocationBox.southBoundLatitude", label: "southBoundLatitude"},
+                            {value: "geoLocations[].geoLocationBox.northBoundLatitude", label: "northBoundLatitude"}
+                        ]
+                    },
+                    {
+                        label: "geoLocationPolygon", children: [
+                            {value: "geoLocations[].geoLocationPolygon[].pointLongitude", label: "pointLongitude"},
+                            {value: "geoLocations[].geoLocationPolygon[].pointLatitude", label: "pointLatitude"},
+                            {
+                                label: "inPolygonPoint", children: [
+                                    {value: "geoLocations[].geoLocationPolygon[].inPolygonPoint.pointLongitude", label: "pointLongitude"},
+                                    {value: "geoLocations[].geoLocationPolygon[].inPolygonPoint.pointLatitude", label: "pointLatitude"}
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                label: "FundingReferences", obligation: "optional", sectionId: "19", children: [
+                    {value: "fundingReferences", label: "fundingReferences"},
+                    {value: "fundingReferences[].funderName", label: "funderName"},
+                    {value: "fundingReferences[].funderIdentifier", label: "funderIdentifier"},
+                    {value: "fundingReferences[].funderIdentifierType", label: "funderIdentifierType"},
+                    {value: "fundingReferences[].schemeUri", label: "schemeUri"},
+                    {value: "fundingReferences[].awardNumber", label: "awardNumber"},
+                    {value: "fundingReferences[].awardUri", label: "awardUri"},
+                    {value: "fundingReferences[].awardTitle", label: "awardTitle"}
+                ]
+            },
+            {
+                label: "RelatedItems", obligation: "optional", sectionId: "20", children: [
+                    {value: "relatedItems", label: "relatedItems"},
+                    {value: "relatedItems[].relationType", label: "relationType"},
+                    {value: "relatedItems[].relatedItemType", label: "relatedItemType"},
+                    {value: "relatedItems[].relatedItemIdentifier", label: "relatedItemIdentifier"},
+                    {value: "relatedItems[].relatedItemIdentifierType", label: "relatedItemIdentifierType"},
+                    {value: "relatedItems[].title", label: "title"},
+                    {value: "relatedItems[].volume", label: "volume"},
+                    {value: "relatedItems[].issue", label: "issue"},
+                    {value: "relatedItems[].number", label: "number"},
+                    {value: "relatedItems[].numberType", label: "numberType"},
+                    {value: "relatedItems[].firstPage", label: "firstPage"},
+                    {value: "relatedItems[].lastPage", label: "lastPage"},
+                    {value: "relatedItems[].edition", label: "edition"},
+                    {value: "relatedItems[].publicationYear", label: "publicationYear"},
+                    {value: "relatedItems[].publisher", label: "publisher"},
+                    {
+                        label: "creators", children: [
+                            {value: "relatedItems[].creators[].name", label: "name"},
+                            {value: "relatedItems[].creators[].nameType", label: "nameType"},
+                            {value: "relatedItems[].creators[].givenName", label: "givenName"},
+                            {value: "relatedItems[].creators[].familyName", label: "familyName"}
+                        ]
+                    },
+                    {
+                        label: "contributors", children: [
+                            {value: "relatedItems[].contributors[].name", label: "name"},
+                            {value: "relatedItems[].contributors[].nameType", label: "nameType"},
+                            {value: "relatedItems[].contributors[].givenName", label: "givenName"},
+                            {value: "relatedItems[].contributors[].familyName", label: "familyName"},
+                            {value: "relatedItems[].contributors[].contributorType", label: "contributorType"}
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        function flattenDataciteTree(tree, trail = []) {
+            return (tree || []).flatMap(item => {
+                const nextTrail = item.value ? trail : [...trail, item.label];
+                const own = item.value ? [{
+                    value: item.value,
+                    label: item.label,
+                    meta: item.meta || nextTrail.join(' › ')
+                }] : [];
+                const children = item.children ? flattenDataciteTree(item.children, [...trail, item.label]) : [];
+                return [...own, ...children];
+            });
+        }
+
+        const DATACITE_FIELD_OPTIONS = flattenDataciteTree(DATACITE_FIELD_TREE);
+
+        const DATACITE_REQUIRED_MAPPINGS = [
+            {key: "doi", label: "doi"},
+            {key: "creators[].name", label: "creators[].name"},
+            {key: "titles[].title", label: "titles[].title"},
+            {key: "publisher", label: "publisher"},
+            {key: "publicationYear", label: "publicationYear"},
+            {key: "types.resourceTypeGeneral", label: "types.resourceTypeGeneral"}
+        ];
+
+        const norm = s => (s ?? '').toString().toLowerCase();
+        const esc = s => (s ?? '').toString()
+            .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;').replaceAll("'", "&#039;");
+
+        function qmark(tip) {
+            return `<span class="tooltip" data-tip="${esc(tip)}">?</span>`;
+        }
+
+        function findDataciteOption(value) {
+            return DATACITE_FIELD_OPTIONS.find(opt => opt.value === value) || null;
+        }
+
+        function dataciteDisplayLabel(value) {
+            if (!value) return "— no DataCite mapping —";
+            const match = findDataciteOption(value);
+            if (!match) return value;
+            return match.meta ? `${match.meta} › ${match.label}` : match.label;
+        }
+
+        function renderDataciteModalSectionItems(items, parentTrail = '') {
+            return (items || []).map(item => {
+                if (item.children?.length) {
+                    const subId = `dcSub_${Math.random().toString(36).slice(2,8)}`;
+                    return `<div class="dcSubSection" id="${subId}">
+                        <button type="button" class="dcSubHead" data-dc-subtoggle="${subId}">
+                            <span class="dcChevron">▶</span> ${esc(item.label)}
+                        </button>
+                        <div class="dcSubChildren">
+                            ${renderDataciteModalSectionItems(item.children, parentTrail ? parentTrail + ' › ' + item.label : item.label)}
+                        </div>
+                    </div>`;
+                }
+                const trail = parentTrail ? parentTrail + ' › ' + item.label : '';
+                return `<button type="button" class="dcLeaf" data-dc-value="${esc(item.value || '')}" data-dc-search="${esc((item.label + ' ' + (item.value || '') + ' ' + trail).toLowerCase())}">
+                    <span>${esc(item.label)}</span>
+                    <span class="dcLeafPath">${esc(item.value || '')}</span>
+                </button>`;
+            }).join('');
+        }
+
+        function renderDataciteModalBody() {
+            let html = '';
+            /* "no mapping" special item */
+            html += `<div class="dcSection open" data-dc-section-search="no datacite mapping none clear">
+                <div class="dcSectionBody" style="display:block; padding:10px;">
+                    <button type="button" class="dcLeaf" data-dc-value="" data-dc-search="no datacite mapping none clear">
+                        <span style="color:var(--muted);">— no DataCite mapping —</span>
+                        <span class="dcLeafPath"></span>
+                    </button>
+                </div>
+            </div>`;
+
+            for (const item of DATACITE_FIELD_TREE) {
+                if (item.value !== undefined && !item.children) {
+                    /* top-level leaf (e.g. Identifier, PublicationYear, Language, Version) */
+                    const obl = item.obligation || 'optional';
+                    const oblLabel = obl.charAt(0).toUpperCase() + obl.slice(1);
+                    const oblClass = obl === 'mandatory' ? 'mandatory' : obl === 'recommended' ? 'recommended' : 'optional';
+                    const sid = item.sectionId || '';
+                    html += `<div class="dcSection" data-dc-section-search="${esc((item.label + ' ' + (item.value||'') + ' ' + (item.meta||'')).toLowerCase())}">
+                        <button type="button" class="dcSectionHead" data-dc-toggle>
+                            <span class="dcChevron">▶</span>
+                            ${sid ? `<span style="color:var(--muted2); font-size:11px; font-family:var(--mono); min-width:22px;">${esc(sid)}</span>` : ''}
+                            ${esc(item.label)}
+                            <span class="dcReqBadge ${oblClass}">${oblLabel}</span>
+                            <span class="dcSectionOcc">${esc(item.value || item.meta || '')}</span>
+                        </button>
+                        <div class="dcSectionBody">
+                            <button type="button" class="dcLeaf" data-dc-value="${esc(item.value)}" data-dc-search="${esc((item.label + ' ' + item.value + ' ' + (item.meta||'')).toLowerCase())}">
+                                <span>${esc(item.label)}</span>
+                                <span class="dcLeafPath">${esc(item.value)}</span>
+                            </button>
+                        </div>
+                    </div>`;
+                    continue;
+                }
+                if (!item.children) continue;
+                const obl = item.obligation || 'optional';
+                const oblLabel = obl.charAt(0).toUpperCase() + obl.slice(1);
+                const oblClass = obl === 'mandatory' ? 'mandatory' : obl === 'recommended' ? 'recommended' : 'optional';
+                const sid = item.sectionId || '';
+                const childCount = flattenDataciteTree(item.children).length;
+                html += `<div class="dcSection" data-dc-section-search="${esc((item.label + ' ' + (item.children||[]).map(c=>c.label+' '+(c.value||'')).join(' ')).toLowerCase())}">
+                    <button type="button" class="dcSectionHead" data-dc-toggle>
+                        <span class="dcChevron">▶</span>
+                        ${sid ? `<span style="color:var(--muted2); font-size:11px; font-family:var(--mono); min-width:22px;">${esc(sid)}</span>` : ''}
+                        ${esc(item.label)}
+                        <span class="dcReqBadge ${oblClass}">${oblLabel}</span>
+                        <span class="dcSectionOcc">${childCount} field${childCount!==1?'s':''}</span>
+                    </button>
+                    <div class="dcSectionBody">
+                        ${renderDataciteModalSectionItems(item.children, item.label)}
+                    </div>
+                </div>`;
+            }
+            return html;
+        }
+
+        /* Render just the trigger button in the field form */
+        function renderDatacitePicker(selectedValue) {
+            return `
+      <div class="datacitePicker" id="datacitePickerRoot">
+        <input type="hidden" id="modalDataciteMap" value="${esc(selectedValue || '')}" />
+        <button type="button" class="dcPickerBtn" id="datacitePickerBtn" aria-haspopup="dialog">
+          <span class="dcPicked ${selectedValue ? '' : 'muted'}">${esc(dataciteDisplayLabel(selectedValue))}</span>
+          <span class="arrow">▶</span>
+        </button>
+      </div>`;
+        }
+
+        /* DataCite modal instance (lazily created) */
+        let _dcModal = null;
+        let _dcResolve = null;
+
+        function getDcModal() {
+            if (_dcModal) return _dcModal;
+            const backdrop = document.createElement('div');
+            backdrop.className = 'dcModalBackdrop';
+            backdrop.id = 'dcModalBackdrop';
+            backdrop.innerHTML = `
+            <div class="dcModalCard">
+                <div class="dcModalHeader">
+                    <div class="dcModalTopRow">
+                        <h3>DataCite 4.7 — Select mapping field</h3>
+                        <button type="button" class="dcModalClose" id="dcModalClose" aria-label="Close">×</button>
+                    </div>
+                    <div class="dcSearchRow">
+                        <input type="search" id="dcModalSearch" placeholder="Search fields (e.g. creator, title, geo…)" autocomplete="off" />
+                        <button type="button" class="dcClearBtn" id="dcModalClearSearch">Clear</button>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="dcClearBtn" data-dc-filter="all" style="font-weight:700;">All</button>
+                        <button type="button" class="dcClearBtn" data-dc-filter="mandatory">Mandatory</button>
+                        <button type="button" class="dcClearBtn" data-dc-filter="recommended">Recommended</button>
+                        <button type="button" class="dcClearBtn" data-dc-filter="optional">Optional</button>
+                        <button type="button" class="dcClearBtn" id="dcExpandAllSections" style="margin-left:auto;">Expand all</button>
+                        <button type="button" class="dcClearBtn" id="dcCollapseAllSections">Collapse all</button>
+                    </div>
+                </div>
+                <div class="dcModalBody" id="dcModalBody">
+                    ${renderDataciteModalBody()}
+                </div>
+                <div class="dcModalFooter">
+                    <div class="dcFooterSelected" id="dcFooterSelected">Selected: — none —</div>
+                    <div class="dcFooterBtns">
+                        <button type="button" class="btn" id="dcModalCancel">Cancel</button>
+                        <button type="button" class="btn primary" id="dcModalConfirm">Confirm</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(backdrop);
+
+            const body = backdrop.querySelector('#dcModalBody');
+            const searchInput = backdrop.querySelector('#dcModalSearch');
+            const footerSel = backdrop.querySelector('#dcFooterSelected');
+            let pendingValue = '';
+
+            /* Highlight currently selected leaf */
+            function highlightSelected(val) {
+                body.querySelectorAll('.dcLeaf.selected').forEach(el => el.classList.remove('selected'));
+                if (val !== undefined && val !== null) {
+                    body.querySelectorAll('.dcLeaf').forEach(el => {
+                        if (el.getAttribute('data-dc-value') === val) el.classList.add('selected');
+                    });
+                }
+                footerSel.textContent = val ? `Selected: ${val}` : 'Selected: — none —';
+            }
+
+            /* Section toggle */
+            body.addEventListener('click', ev => {
+                const toggleBtn = ev.target.closest('[data-dc-toggle]');
+                if (toggleBtn) {
+                    const sec = toggleBtn.closest('.dcSection');
+                    if (sec) sec.classList.toggle('open');
+                    return;
+                }
+                const subToggle = ev.target.closest('[data-dc-subtoggle]');
+                if (subToggle) {
+                    const subSec = document.getElementById(subToggle.getAttribute('data-dc-subtoggle'));
+                    if (subSec) subSec.classList.toggle('open');
+                    return;
+                }
+                const leaf = ev.target.closest('.dcLeaf');
+                if (leaf) {
+                    pendingValue = leaf.getAttribute('data-dc-value') || '';
+                    highlightSelected(pendingValue);
+                    return;
+                }
+            });
+
+            /* Double-click leaf to confirm immediately */
+            body.addEventListener('dblclick', ev => {
+                const leaf = ev.target.closest('.dcLeaf');
+                if (leaf) {
+                    pendingValue = leaf.getAttribute('data-dc-value') || '';
+                    closeDcModal(pendingValue);
+                }
+            });
+
+            /* Search */
+            searchInput.addEventListener('input', () => {
+                const q = searchInput.value.trim().toLowerCase();
+                body.querySelectorAll('.dcSection').forEach(sec => {
+                    if (!q) { sec.classList.remove('hidden'); return; }
+                    const haystack = sec.getAttribute('data-dc-section-search') || '';
+                    /* also check individual leaves */
+                    let anyLeafMatch = false;
+                    sec.querySelectorAll('.dcLeaf').forEach(leaf => {
+                        const leafHay = leaf.getAttribute('data-dc-search') || '';
+                        const match = q.split(/\s+/).every(w => leafHay.includes(w));
+                        leaf.style.display = match || !q ? '' : 'none';
+                        if (match) anyLeafMatch = true;
+                    });
+                    sec.querySelectorAll('.dcSubSection').forEach(sub => {
+                        const hasVisible = sub.querySelector('.dcLeaf:not([style*="display: none"])');
+                        sub.classList.toggle('hidden', !hasVisible);
+                    });
+                    const sectionMatch = q.split(/\s+/).every(w => haystack.includes(w));
+                    sec.classList.toggle('hidden', !sectionMatch && !anyLeafMatch);
+                    if (q && (sectionMatch || anyLeafMatch)) sec.classList.add('open');
+                });
+            });
+            backdrop.querySelector('#dcModalClearSearch').addEventListener('click', () => {
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+                searchInput.focus();
+            });
+
+            /* Obligation filter buttons */
+            backdrop.querySelectorAll('[data-dc-filter]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const filter = btn.getAttribute('data-dc-filter');
+                    body.querySelectorAll('.dcSection').forEach(sec => {
+                        if (filter === 'all') { sec.classList.remove('hidden'); return; }
+                        /* find the obligation of this section from the tree */
+                        const head = sec.querySelector('.dcReqBadge');
+                        if (!head) { sec.classList.remove('hidden'); return; }
+                        const obl = head.textContent.trim().toLowerCase();
+                        sec.classList.toggle('hidden', obl !== filter);
+                    });
+                });
+            });
+
+            /* Expand / Collapse all */
+            backdrop.querySelector('#dcExpandAllSections').addEventListener('click', () => {
+                body.querySelectorAll('.dcSection').forEach(s => s.classList.add('open'));
+                body.querySelectorAll('.dcSubSection').forEach(s => s.classList.add('open'));
+            });
+            backdrop.querySelector('#dcCollapseAllSections').addEventListener('click', () => {
+                body.querySelectorAll('.dcSection').forEach(s => s.classList.remove('open'));
+                body.querySelectorAll('.dcSubSection').forEach(s => s.classList.remove('open'));
+            });
+
+            /* Cancel / Confirm / Close */
+            function closeDcModal(result) {
+                backdrop.classList.remove('show');
+                if (_dcResolve) { _dcResolve(result); _dcResolve = null; }
+            }
+            backdrop.querySelector('#dcModalClose').addEventListener('click', () => closeDcModal(null));
+            backdrop.querySelector('#dcModalCancel').addEventListener('click', () => closeDcModal(null));
+            backdrop.querySelector('#dcModalConfirm').addEventListener('click', () => closeDcModal(pendingValue));
+            backdrop.addEventListener('keydown', ev => {
+                if (ev.key === 'Escape') closeDcModal(null);
+            });
+
+            _dcModal = { backdrop, searchInput, body, highlightSelected, pendingValue: () => pendingValue, setPending: v => { pendingValue = v; } };
+            return _dcModal;
+        }
+
+        function openDcModal(currentValue) {
+            return new Promise(resolve => {
+                _dcResolve = resolve;
+                const m = getDcModal();
+                m.setPending(currentValue || '');
+                m.highlightSelected(currentValue || '');
+                m.searchInput.value = '';
+                m.searchInput.dispatchEvent(new Event('input'));
+                /* reset visibility */
+                m.body.querySelectorAll('.dcSection').forEach(s => { s.classList.remove('hidden'); s.classList.remove('open'); });
+                m.body.querySelectorAll('.dcSubSection').forEach(s => { s.classList.remove('hidden'); s.classList.remove('open'); });
+                m.body.querySelectorAll('.dcLeaf').forEach(l => l.style.display = '');
+                /* open the section containing the current value */
+                if (currentValue) {
+                    m.body.querySelectorAll('.dcLeaf').forEach(l => {
+                        if (l.getAttribute('data-dc-value') === currentValue) {
+                            const sec = l.closest('.dcSection');
+                            if (sec) sec.classList.add('open');
+                            const sub = l.closest('.dcSubSection');
+                            if (sub) sub.classList.add('open');
+                        }
+                    });
+                }
+                m.backdrop.classList.add('show');
+                setTimeout(() => m.searchInput.focus(), 60);
+            });
+        }
+
+        function attachDatacitePickerHandlers() {
+            const picker = document.getElementById('datacitePickerRoot');
+            const hidden = document.getElementById('modalDataciteMap');
+            const picked = fieldModalBody.querySelector('.dcPicked');
+            const toggleBtn = document.getElementById('datacitePickerBtn');
+            if (!picker || !hidden || !picked || !toggleBtn) return;
+
+            toggleBtn.addEventListener('click', async (ev) => {
+                ev.preventDefault();
+                const result = await openDcModal(hidden.value || '');
+                if (result !== null) {
+                    hidden.value = result;
+                    picked.textContent = dataciteDisplayLabel(result);
+                    picked.classList.toggle('muted', !result);
+                }
+                toggleBtn.focus();
+            });
+        }
+
+        function setDirty(v) {
+            dirty = !!v;
+            topNote.style.display = dirty ? "block" : "none";
+        }
+
+        function setFieldDirty(v) {
+            fieldDirty = !!v;
+            const saveBtn = document.getElementById("saveField");
+            const hint = document.getElementById("saveHint");
+            if (saveBtn) saveBtn.classList.toggle("saveDirty", fieldDirty);
+            if (hint) hint.style.display = fieldDirty ? "block" : "none";
+        }
+
+        function toast(msg, ms = 2200) {
+            toastEl.innerHTML = msg;
+            toastEl.classList.add("show");
+            clearTimeout(toastEl._t);
+            toastEl._t = setTimeout(() => toastEl.classList.remove("show"), ms);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem(THEME_KEY, theme);
+            if (theme === "dark") {
+                themeIcon.textContent = "☀️";
+                themeLabel.textContent = "Light";
+            } else {
+                themeIcon.textContent = "🌙";
+                themeLabel.textContent = "Dark";
+            }
+        }
+
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        setTheme(savedTheme === "dark" ? "dark" : "light");
+
+        btnTheme.addEventListener("click", () => {
+            const current = document.documentElement.getAttribute("data-theme") || "light";
+            setTheme(current === "dark" ? "light" : "dark");
+        });
+
+        try {
+            exportNameInput.value = localStorage.getItem(EXPORT_NAME_KEY) || "";
+        } catch {
+        }
+        exportNameInput?.addEventListener("input", () => {
+            try {
+                localStorage.setItem(EXPORT_NAME_KEY, exportNameInput.value || '');
+            } catch {
+            }
+        });
+        fieldModalClose?.addEventListener("click", closeFieldModal);
+        fieldModalBackdrop?.addEventListener("click", (ev) => {
+            if (ev.target === fieldModalBackdrop) closeFieldModal();
+        });
+        document.addEventListener("keydown", (ev) => {
+            if (ev.key === "Escape" && fieldModalBackdrop.classList.contains("show")) closeFieldModal();
+        });
+
+        function deepClone(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        function getLabel(def, fallback) {
+            return def?.["x-label"] || def?.title || fallback || "";
+        }
+
+        function getTooltip(def) {
+            return def?.["x-tooltip"] || "";
+        }
+
+        function getDesc(def) {
+            return def?.["x-description"] || def?.description || "";
+        }
+
+        function getReq(def) {
+            return def?.["x-required"] === true;
+        }
+
+        function getEnums(def) {
+            if (Array.isArray(def?.enum)) return def.enum;
+            if (Array.isArray(def?.enumValues)) return def.enumValues;
+            return null;
+        }
+
+        function getDataciteMap(def) {
+            return (def?.["x-datacite-map"] || "").toString().trim();
+        }
+
+        function typeOfDef(def) {
+            const t = def?.type;
+            if (t) return t;
+            if (def?.properties) return "object";
+            if (def?.items) return "array";
+            return "unknown";
+        }
+
+        function ensureObjectType(def) {
+            if (!def.type) def.type = "object";
+            if (def.type !== "object") def.type = "object";
+            if (!def.properties || typeof def.properties !== "object") def.properties = {};
+        }
+
+        function ensureArrayType(def) {
+            if (!def.type) def.type = "array";
+            if (def.type !== "array") def.type = "array";
+            if (!def.items || typeof def.items !== "object") def.items = {type: "object", properties: {}};
+        }
+
+        function ensurePrimitiveType(def, t) {
+            def.type = t;
+            delete def.properties;
+            delete def.items;
+        }
+
+        function normalizeInputToSchemaData(obj) {
+            if (obj && typeof obj === "object") {
+                if (obj.properties && typeof obj.properties === "object") return {
+                    type: "object",
+                    properties: deepClone(obj.properties)
+                };
+                const keys = Object.keys(obj);
+                const looksLikeMap = keys.length > 0 && keys.every(k => {
+                    const v = obj[k];
+                    return v && typeof v === "object" && (
+                        "type" in v || "x-label" in v || "x-description" in v || "x-tooltip" in v || "properties" in v || "items" in v
+                    );
+                });
+                if (looksLikeMap) return {type: "object", properties: deepClone(obj)};
+            }
+            return {type: "object", properties: {}};
+        }
+
+        function getChildren(def) {
+            if (!def) return [];
+            if (def.properties && typeof def.properties === "object") return Object.entries(def.properties).map(([k, v]) => [k, v, "property"]);
+            if (def.items) return [["(items)", def.items, "items"]];
+            return [];
+        }
+
+        function buildTree(def, name, path, parentId = null) {
+            const id = path || name || "(root)";
+            const node = {
+                id, name, path, def, parentId,
+                type: typeOfDef(def),
+                label: getLabel(def, name),
+                tooltip: getTooltip(def),
+                desc: getDesc(def),
+                required: getReq(def),
+                children: []
+            };
+            for (const [ck, cdef, kind] of getChildren(def)) {
+                const childPath = path ? (kind === "items" ? `${path}[]` : `${path}.${ck}`) : ck;
+                node.children.push(buildTree(cdef, ck, childPath, id));
+            }
+            return node;
+        }
+
+        function flatten(n) {
+            const out = [];
+            (function rec(x, depth) {
+                out.push({...x, depth});
+                (x.children || []).forEach(ch => rec(ch, depth + 1));
+            })(n, 0);
+            return out;
+        }
+
+        function countDisplayFields(n) {
+            let c = 0;
+            (function rec(x) {
+                if (x.name && x.name !== "(items)" && x.name !== "(root)") c++;
+                (x.children || []).forEach(rec);
+            })(n);
+            return c;
+        }
+
+        function getNodeById(id) {
+            return flat.find(x => x.id === id) || null;
+        }
+
+        function ensureExpandedTo(id) {
+            let cur = getNodeById(id);
+            while (cur && cur.parentId) {
+                expanded.add(cur.parentId);
+                cur = getNodeById(cur.parentId);
+            }
+        }
+
+        function parsePathToSegments(path) {
+            const p = (path || "").replace(/^\(root\)\.?/, "");
+            if (!p) return [];
+            return p.split(".").map(seg => seg.trim()).filter(Boolean);
+        }
+
+        function getDefAtPath(path) {
+            const segs = parsePathToSegments(path);
+            let cur = schemaData;
+            for (const seg of segs) {
+                const isArr = seg.endsWith("[]");
+                const key = isArr ? seg.slice(0, -2) : seg;
+                ensureObjectType(cur);
+                if (!cur.properties[key]) cur.properties[key] = {type: "string"};
+                cur = cur.properties[key];
+                if (isArr) {
+                    ensureArrayType(cur);
+                    cur = cur.items;
+                }
+            }
+            return cur;
+        }
+
+        function getParentContainerAndKey(node) {
+            const path = node.path || node.name;
+            const segs = parsePathToSegments(path);
+            if (segs.length === 0) return null;
+            const last = segs[segs.length - 1];
+            if (last === "(items)") return null;
+            const lastIsArr = last.endsWith("[]");
+            const lastKey = lastIsArr ? last.slice(0, -2) : last;
+            const parentSegs = segs.slice(0, -1);
+            let cur = schemaData;
+            for (const seg of parentSegs) {
+                const isArr = seg.endsWith("[]");
+                const key = isArr ? seg.slice(0, -2) : seg;
+                ensureObjectType(cur);
+                cur = cur.properties[key];
+                if (isArr) {
+                    ensureArrayType(cur);
+                    cur = cur.items;
+                }
+            }
+            ensureObjectType(cur);
+            return {container: cur.properties, key: lastKey};
+        }
+
+        function isTreeOpen(n, searching) {
+            if (searching) return true;
+            if (n.name === "(root)") return true;
+            return expanded.has(n.id);
+        }
+
+        function getChildContainerForNode(node) {
+            if (!node) return null;
+            if (node.name === "(root)") {
+                ensureObjectType(schemaData);
+                return schemaData.properties;
+            }
+            const def = getDefAtPath(node.path);
+            const type = typeOfDef(def);
+            if (type === "array" || def.items) {
+                ensureArrayType(def);
+                ensureObjectType(def.items);
+                return def.items.properties;
+            }
+            ensureObjectType(def);
+            return def.properties;
+        }
+
+        function moveFieldRelative(draggedId, targetId, position) {
+            const dragged = getNodeById(draggedId);
+            const target = getNodeById(targetId);
+            if (!dragged || !target || !position) return false;
+            if (dragged.id === target.id) return false;
+            if (dragged.parentId !== target.parentId) {
+                toast("<b>Move not allowed:</b> fields can only be reordered within the same level.");
+                return false;
+            }
+            const parent = dragged.parentId ? getNodeById(dragged.parentId) : null;
+            const container = getChildContainerForNode(parent);
+            if (!container) return false;
+
+            const entries = Object.entries(container);
+            const draggedIndex = entries.findIndex(([key]) => key === dragged.name);
+            const targetIndex = entries.findIndex(([key]) => key === target.name);
+            if (draggedIndex < 0 || targetIndex < 0) return false;
+
+            const [draggedEntry] = entries.splice(draggedIndex, 1);
+            let insertIndex = entries.findIndex(([key]) => key === target.name);
+            if (insertIndex < 0) return false;
+            if (position === "after") insertIndex += 1;
+            entries.splice(insertIndex, 0, draggedEntry);
+
+            const reordered = {};
+            for (const [key, val] of entries) reordered[key] = val;
+            Object.keys(container).forEach(k => delete container[k]);
+            Object.assign(container, reordered);
+            setDirty(true);
+            activeId = dragged.id;
+            toast("Field order updated.");
+            return true;
+        }
+
+        function clearDragState() {
+            dragState = {draggedId: null, overId: null, position: null};
+        }
+
+        function updateDragIndicators() {
+            elTree.querySelectorAll('.node').forEach(el => {
+                el.classList.remove('dragging', 'dropBefore', 'dropAfter');
+                const id = el.getAttribute('data-node-id');
+                if (!id) return;
+                if (dragState.draggedId === id) el.classList.add('dragging');
+                if (dragState.overId === id && dragState.position === 'before') el.classList.add('dropBefore');
+                if (dragState.overId === id && dragState.position === 'after') el.classList.add('dropAfter');
+            });
+        }
+
+        function renderTree(filterText = "") {
+            elTree.innerHTML = "";
+            const q = norm(filterText);
+            const searching = q.length > 0;
+
+            function matches(n) {
+                if (!searching) return true;
+                const hay = [n.name, n.path, n.label, n.desc, n.type].map(norm).join(" ");
+                return hay.includes(q);
+            }
+
+            function hasMatchBelow(n) {
+                if (matches(n)) return true;
+                return (n.children || []).some(hasMatchBelow);
+            }
+
+            function makeGroup(n, depth) {
+                if (!hasMatchBelow(n)) return null;
+
+                const renderRow = n.name !== "(root)";
+                const hasKids = (n.children || []).length > 0;
+                const open = isTreeOpen(n, searching);
+
+                const group = document.createElement("div");
+                group.className = `nodeGroup depth${depth}`;
+
+                if (renderRow) {
+                    const row = document.createElement("div");
+                    row.className = "node" + (n.id === activeId ? " active" : "");
+                    row.setAttribute("data-node-id", n.id);
+                    if (dragState.draggedId === n.id) row.classList.add("dragging");
+                    if (dragState.overId === n.id && dragState.position === "before") row.classList.add("dropBefore");
+                    if (dragState.overId === n.id && dragState.position === "after") row.classList.add("dropAfter");
+
+                    const toggle = document.createElement("div");
+                    toggle.className = "toggle" + (hasKids ? "" : " hidden");
+                    toggle.textContent = open ? "▾" : "▸";
+                    toggle.addEventListener("click", (ev) => {
+                        ev.stopPropagation();
+                        if (!hasKids) return;
+                        if (expanded.has(n.id)) expanded.delete(n.id);
+                        else expanded.add(n.id);
+                        renderTree(elSearch.value);
+                    });
+
+                    const k = document.createElement("div");
+                    k.className = "k";
+                    k.innerHTML = `<div class="name">${esc(n.name)}</div><div class="label">${esc(n.label || "")}</div>`;
+
+                    const t = document.createElement("div");
+                    t.className = "t";
+                    t.textContent = n.type;
+
+                    row.appendChild(toggle);
+                    row.appendChild(k);
+                    row.appendChild(t);
+
+                    row.draggable = n.name !== "(root)" && n.name !== "(items)";
+
+                    row.addEventListener("click", () => {
+                        if (fieldDirty && activeTab === "view") {
+                            const ok = confirm("This field has unsaved changes. Switch anyway?");
+                            if (!ok) return;
+                        }
+                        setFieldDirty(false);
+                        activeId = n.id;
+                        ensureExpandedTo(activeId);
+                        renderTree(elSearch.value);
+                        renderContent();
+                        const activeEl = elTree.querySelector(".node.active");
+                        if (activeEl) activeEl.scrollIntoView({block: "center"});
+                    });
+
+                    row.addEventListener("dragstart", (ev) => {
+                        dragState.draggedId = n.id;
+                        dragState.overId = null;
+                        dragState.position = null;
+                        row.classList.add("dragging");
+                        if (ev.dataTransfer) {
+                            ev.dataTransfer.effectAllowed = "move";
+                            ev.dataTransfer.setData("text/plain", n.id);
+                        }
+                    });
+
+                    row.addEventListener("dragend", () => {
+                        clearDragState();
+                        updateDragIndicators();
+                    });
+
+                    row.addEventListener("dragover", (ev) => {
+                        if (!dragState.draggedId || dragState.draggedId === n.id) return;
+                        const dragged = getNodeById(dragState.draggedId);
+                        if (!dragged || dragged.parentId !== n.parentId) return;
+                        ev.preventDefault();
+                        if (ev.dataTransfer) ev.dataTransfer.dropEffect = "move";
+                        const rect = row.getBoundingClientRect();
+                        const midpoint = rect.top + rect.height / 2;
+                        const nextPosition = ev.clientY < midpoint ? "before" : "after";
+                        if (dragState.overId !== n.id || dragState.position !== nextPosition) {
+                            dragState.overId = n.id;
+                            dragState.position = nextPosition;
+                            updateDragIndicators();
+                        }
+                    });
+
+                    row.addEventListener("drop", (ev) => {
+                        if (!dragState.draggedId || dragState.draggedId === n.id) return;
+                        const dragged = getNodeById(dragState.draggedId);
+                        if (!dragged || dragged.parentId !== n.parentId) return;
+                        ev.preventDefault();
+                        const position = dragState.position || "after";
+                        const moved = moveFieldRelative(dragState.draggedId, n.id, position);
+                        clearDragState();
+                        if (moved) refreshDerivedState(true);
+                        else updateDragIndicators();
+                    });
+
+                    group.appendChild(row);
+                }
+
+                const kidsWrap = document.createElement("div");
+                kidsWrap.className = "children";
+                kidsWrap.style.display = open ? "block" : "none";
+
+                if (open) {
+                    for (const ch of (n.children || [])) {
+                        const el = makeGroup(ch, n.name === "(root)" ? depth : depth + 1);
+                        if (el) kidsWrap.appendChild(el);
+                    }
+                }
+                group.appendChild(kidsWrap);
+                return group;
+            }
+
+            const top = makeGroup(root, 0);
+            if (top) elTree.appendChild(top);
+        }
+
+        function buildTabs() {
+            return `
+      <div class="tabs">
+        <div class="tab ${activeTab === "view" ? "active" : ""}" data-tab="view">View</div>
+        <div class="tab ${activeTab === "raw" ? "active" : ""}" data-tab="raw">Raw JSON</div>
+      </div>
+    `;
+        }
+
+        function buildBreadcrumb(n) {
+            const chain = [];
+            let cur = n;
+            while (cur) {
+                if (cur.name !== "(root)") chain.push(cur);
+                cur = cur.parentId ? getNodeById(cur.parentId) : null;
+            }
+            chain.reverse();
+            if (!chain.length) return "";
+            return `
+      <div class="crumbs">
+        ${chain.map((x, i) => `
+          <span class="crumb" data-nav="${esc(x.id)}" title="${esc(x.path || x.name)}">${esc(x.name)}</span>
+          ${i < chain.length - 1 ? `<span class="sep">›</span>` : ``}
+        `).join("")}
+      </div>
+    `;
+        }
+
+        function kvRow(k, v) {
+            return `<div class="k2">${esc(k)}</div><div class="v2">${(v === "" || v == null) ? `<span style="opacity:.55">—</span>` : esc(String(v))}</div>`;
+        }
+
+        function renderViewTab(node) {
+            const d = node?.def || {};
+            const type = typeOfDef(d);
+            const label = getLabel(d, node.name);
+            const tip = getTooltip(d);
+            const desc = getDesc(d);
+            const req = getReq(d);
+            const enums = getEnums(d);
+
+            const badgeReq = req ? `<span class="badge req">required</span>` : ``;
+            const badgeType = `<span class="badge type">type: ${esc(type)}</span>`;
+
+            const children = node.children || [];
+            const childHtml = children.length ? `
+      <div class="childrenTitle"><span>Sub-fields</span><span style="font-size:11px; color:var(--muted2); font-weight:800">click a card to navigate</span></div>
+      ${children.map(ch => `
+        <div class="childCard" data-nav="${esc(ch.id)}">
+          <div style="flex:1; min-width:0"><div class="cname">${esc(ch.name)}</div><div class="clabel">${esc(ch.label || "")}</div></div>
+          <div class="t">${esc(ch.type)}</div>
+        </div>
+      `).join("")}
+    ` : `<div class="childrenTitle">Sub-fields</div><div class="empty" style="padding:12px">No nested fields.</div>`;
+
+            const enumHtml = enums && enums.length ? `
+      <div style="margin-top:12px;">
+        <div class="childrenTitle" style="margin-top:0;">Enum values</div>
+        <div class="chips">${enums.slice(0, 200).map(v => `<span class="chip">${esc(String(v))}</span>`).join("")}</div>
+        ${enums.length > 200 ? `<div style="margin-top:8px;color:var(--muted);font-size:12px;">Showing first 200 of ${enums.length} values.</div>` : ``}
+      </div>
+    ` : ``;
+
+            return `
+      ${buildBreadcrumb(node)}
+      <div class="field">
+        <div class="row">
+          <div class="title">
+            <div class="main">
+              <span>${esc(node.name)}</span>
+              ${tip ? `<span class="tooltip" data-tip="${esc(tip)}">?</span>` : ``}
+              ${badgeType}
+              ${badgeReq}
+            </div>
+            <div class="path">${esc(node.path || node.name)}</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn primary" id="openEditFieldForm">Edit field</button>
+            <button class="btn" id="openAddChildForm">Add sub-field</button>
+            ${node.name !== "(root)" && node.name !== "(items)" ? `<button class="btn danger" id="deleteField">Delete field</button>` : ``}
+          </div>
+        </div>
+
+        <div class="kv">
+          ${kvRow("label", label)}
+          ${kvRow("tooltip", tip)}
+          ${kvRow("description", desc)}
+          ${kvRow("required", req ? "true" : "false")}
+          ${kvRow("type", type)}
+          ${kvRow("DataCite mapping", getDataciteMap(d))}
+        </div>
+
+        ${enumHtml}
+        ${childHtml}
+      </div>
+    `;
+        }
+
+        function getCustomMeta(def) {
+            const out = [];
+            if (!def || typeof def !== "object") return out;
+            const reserved = ["x-label", "x-tooltip", "x-description", "x-required", "x-datacite-map"];
+            for (const k of Object.keys(def)) {
+                if (k.startsWith("x-") && !reserved.includes(k)) out.push([k.slice(2), def[k]]);
+            }
+            out.sort((a, b) => a[0].localeCompare(b[0]));
+            return out;
+        }
+
+        function renderMetaRows(pairs) {
+            if (!pairs.length) return `<div class="smallHelp" style="margin-top:8px;">No custom metadata.</div>`;
+            return `
+      <div class="metaList">
+        ${pairs.map(([k, v], idx) => `
+          <div class="metaRow" data-meta-row="${idx}">
+            <input type="text" class="metaKey" value="${esc(k)}" placeholder="key" />
+            <input type="text" class="metaVal" value="${esc(String(v))}" placeholder="value" />
+            <button class="btn danger metaRemove" type="button">Remove</button>
+          </div>
+        `).join("")}
+      </div>
+    `;
+        }
+
+        function renderEditTab(node) {
+            if (!node) return `<div class="empty">Select a field in the tree to edit it.</div>`;
+
+            const d = node.def || {};
+            const children = node.children || [];
+            const type = typeOfDef(d);
+            return `
+      ${buildBreadcrumb(node)}
+      <div class="field">
+        <div class="row">
+          <div class="title">
+            <div class="main">
+              <span>Field editor</span>
+              <span class="badge type">type: ${esc(type)}</span>
+              ${getReq(d) ? `<span class="badge req">required</span>` : ``}
+            </div>
+            <div class="path">${esc(node.path || node.name)}</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn primary" id="openEditFieldForm">Edit field</button>
+            <button class="btn" id="openAddChildForm">Add sub-field</button>
+            ${node.name !== "(root)" && node.name !== "(items)" ? `<button class="btn danger" id="deleteField">Delete field</button>` : ``}
+          </div>
+        </div>
+
+        <div class="kv">
+          ${kvRow("label", getLabel(d, node.name))}
+          ${kvRow("tooltip", getTooltip(d))}
+          ${kvRow("description", getDesc(d))}
+          ${kvRow("required", getReq(d) ? "true" : "false")}
+          ${kvRow("DataCite mapping", getDataciteMap(d))}
+          ${kvRow("children", String(children.length))}
+        </div>
+
+        <div class="saveHint" id="saveHint" style="display:block; margin-top:12px;">
+          <b>Tip:</b> all create and edit actions now use a dedicated field form.
+        </div>
+      </div>
+    `;
+        }
+
+        function renderRawTab() {
+            const raw = JSON.stringify(schemaData?.properties || {}, null, 2);
+            return `
+      <div class="field">
+        <div class="row">
+          <div class="title">
+            <div class="main">Raw JSON</div>
+            <div class="smallHelp">Map-style JSON (fieldName → definition). If you edit here, click Apply.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;"><textarea id="rawEditor" style="width:100%;">${esc(raw)}</textarea></div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn primary" id="applyRaw">Apply changes</button>
+          <button class="btn" id="copyRaw">Copy</button>
+        </div>
+      </div>
+    `;
+        }
+
+
+        function buildFieldForm(mode, opts = {}) {
+            const node = opts.nodeId ? getNodeById(opts.nodeId) : null;
+            const parentNode = opts.parentId ? getNodeById(opts.parentId) : null;
+            const isEdit = mode === "edit";
+            const baseDef = isEdit ? deepClone(node?.def || {type: "string"}) : {type: "string"};
+            const type = typeOfDef(baseDef);
+            const meta = getCustomMeta(baseDef);
+            const enums = (getEnums(baseDef) || []).join("\n");
+            const suggestedName = isEdit ? (node?.name || "") : "";
+            const parentLabel = parentNode ? (parentNode.path || parentNode.name) : "top level";
+
+            fieldModalTitle.textContent = isEdit ? "Edit field" : "Create field";
+            fieldModalSubtitle.textContent = isEdit ? `Update ${node?.path || node?.name || "field"}.` : `Create a new field under ${parentLabel}.`;
+            fieldModalBody.innerHTML = `
+      <div class="split">
+        <div class="field" style="margin:0;">
+          <div class="childrenTitle" style="margin-top:0;">Field details</div>
+          <div class="formRow">
+            <label>Field name ${qmark(HELP.fieldName)}</label>
+            <input type="text" id="modalFieldName" value="${esc(suggestedName)}" placeholder="e.g. latitude" ${isEdit && (node?.name === "(root)" || node?.name === "(items)") ? "disabled" : ""} />
+          </div>
+          <div class="formRow">
+            <label>Type ${qmark(HELP.type)}</label>
+            <select id="modalFieldType">
+              ${["string", "integer", "number", "boolean", "object", "array"].map(t => `<option value="${t}" ${t === type ? "selected" : ""}>${t}</option>`).join("")}
+            </select>
+          </div>
+          <div class="formRow">
+            <label>Label ${qmark(HELP.label)}</label>
+            <input type="text" id="modalFieldLabel" value="${esc(baseDef["x-label"] || "")}" placeholder="Displayed label" />
+          </div>
+          <div class="formRow">
+            <label>Tooltip ${qmark(HELP.tooltip)}</label>
+            <input type="text" id="modalFieldTooltip" value="${esc(baseDef["x-tooltip"] || "")}" placeholder="Tooltip text" />
+          </div>
+          <div class="formRow">
+            <label>Description ${qmark(HELP.description)}</label>
+            <textarea id="modalFieldDesc" placeholder="Description">${esc(baseDef["x-description"] || "")}</textarea>
+          </div>
+          <div class="checkRow">
+            <input type="checkbox" id="modalFieldReq" ${baseDef["x-required"] === true ? "checked" : ""} />
+            <label for="modalFieldReq" style="margin:0; font-weight:900; color:var(--muted); font-size:12px; display:flex; gap:8px; align-items:center;">
+              Required ${qmark(HELP.required)}
+            </label>
+          </div>
+          <div class="formRow">
+            <label>Enum values ${qmark(HELP.enumValues)}</label>
+            <textarea id="modalFieldEnum" placeholder="One value per line">${esc(enums)}</textarea>
+          </div>
+          <div class="formRow">
+            <label>DataCite mapping ${qmark(HELP.dataciteMap)}</label>
+            <div>
+              ${renderDatacitePicker(getDataciteMap(baseDef))}
+              <div class="smallHelp" style="margin-top:6px;">Click to open the DataCite 4.7 field browser with search, filtering by obligation level, and hierarchical sections.</div>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin:0;">
+          <div class="childrenTitle" style="margin-top:0;">Custom metadata</div>
+          <div class="smallHelp">Custom entries are saved as <span class="mono">x-key: value</span>.</div>
+          <div class="formRow"><label>Add key</label><input type="text" id="modalMetaNewKey" placeholder="e.g. source" /></div>
+          <div class="formRow"><label>Add value</label><input type="text" id="modalMetaNewVal" placeholder="e.g. DEIMS" /></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+            <button class="btn primary" id="modalMetaAdd" type="button">+ Add metadata</button>
+          </div>
+          ${renderMetaRows(meta)}
+        </div>
+      </div>
+      <div class="modalActions">
+        <button class="btn" id="fieldModalCancel" type="button">Cancel</button>
+        <button class="btn primary" id="fieldModalSave" type="button">${isEdit ? "Save changes" : "Create field"}</button>
+      </div>
+    `;
+
+            modalState = {mode, opts};
+
+            fieldModalBody.querySelectorAll(".metaRemove").forEach(btn => {
+                btn.addEventListener("click", () => btn.closest(".metaRow")?.remove());
+            });
+            document.getElementById("modalMetaAdd")?.addEventListener("click", () => {
+                const k = (document.getElementById("modalMetaNewKey")?.value || "").trim();
+                const v = document.getElementById("modalMetaNewVal")?.value || "";
+                if (!k) {
+                    toast("<b>Missing key:</b> enter a metadata key.");
+                    return;
+                }
+                let list = fieldModalBody.querySelector(".metaList");
+                if (!list) {
+                    list = document.createElement("div");
+                    list.className = "metaList";
+                    document.getElementById("modalMetaAdd")?.parentElement.insertAdjacentElement("afterend", list);
+                }
+                const row = document.createElement("div");
+                row.className = "metaRow";
+                row.innerHTML = `<input type="text" class="metaKey" value="${esc(k)}" placeholder="key" /><input type="text" class="metaVal" value="${esc(String(v))}" placeholder="value" /><button class="btn danger metaRemove" type="button">Remove</button>`;
+                row.querySelector(".metaRemove")?.addEventListener("click", () => row.remove());
+                list.appendChild(row);
+                document.getElementById("modalMetaNewKey").value = "";
+                document.getElementById("modalMetaNewVal").value = "";
+            });
+            attachDatacitePickerHandlers();
+            document.getElementById("fieldModalCancel")?.addEventListener("click", closeFieldModal);
+            document.getElementById("fieldModalSave")?.addEventListener("click", saveFieldModal);
+        }
+
+        function openFieldModal(mode, opts = {}) {
+            buildFieldForm(mode, opts);
+            fieldModalBackdrop.classList.add("show");
+            fieldModalBackdrop.setAttribute("aria-hidden", "false");
+            document.getElementById("modalFieldName")?.focus();
+        }
+
+        function closeFieldModal() {
+            fieldModalBackdrop.classList.remove("show");
+            fieldModalBackdrop.setAttribute("aria-hidden", "true");
+            fieldModalBody.innerHTML = "";
+            modalState = null;
+        }
+
+        function collectModalMetaPairs() {
+            return Array.from(fieldModalBody.querySelectorAll('.metaRow')).map(row => [row.querySelector('.metaKey')?.value || '', row.querySelector('.metaVal')?.value || '']).filter(([k]) => (k || '').trim().length);
+        }
+
+        function makeDefinitionFromModal(existingDef = null) {
+            const defRef = {};
+            const newType = document.getElementById("modalFieldType")?.value || "string";
+            if (newType === "object") {
+                ensureObjectType(defRef);
+                if (existingDef && (typeOfDef(existingDef) === "object" || existingDef.properties)) {
+                    defRef.properties = JSON.parse(JSON.stringify(existingDef.properties || {}));
+                }
+            } else if (newType === "array") {
+                ensureArrayType(defRef);
+                if (existingDef && (typeOfDef(existingDef) === "array" || existingDef.items)) {
+                    defRef.items = JSON.parse(JSON.stringify(existingDef.items || {type: "object", properties: {}}));
+                }
+            } else ensurePrimitiveType(defRef, newType);
+            const label = (document.getElementById("modalFieldLabel")?.value || '').trim();
+            const tip = (document.getElementById("modalFieldTooltip")?.value || '').trim();
+            const desc = (document.getElementById("modalFieldDesc")?.value || '').trim();
+            if (label) defRef["x-label"] = label;
+            if (tip) defRef["x-tooltip"] = tip;
+            if (desc) defRef["x-description"] = desc;
+            defRef["x-required"] = document.getElementById("modalFieldReq")?.checked === true;
+            const enums = (document.getElementById("modalFieldEnum")?.value || '').split('\n').map(x => x.trim()).filter(Boolean);
+            if (enums.length) defRef.enumValues = enums;
+            const dataciteMap = (document.getElementById("modalDataciteMap")?.value || '').trim();
+            if (dataciteMap) defRef["x-datacite-map"] = dataciteMap;
+            applyCustomMetaFromUI(defRef, collectModalMetaPairs());
+            return defRef;
+        }
+
+        function saveFieldModal() {
+            if (!modalState) return;
+            const name = (document.getElementById("modalFieldName")?.value || '').trim();
+            if (!name && modalState.mode === 'create') {
+                toast("<b>Missing name:</b> enter a field name.");
+                return;
+            }
+
+            if (modalState.mode === 'edit') {
+                const node = getNodeById(modalState.opts.nodeId);
+                if (!node) return;
+                const newDef = makeDefinitionFromModal(node.def);
+                const canRename = node.name !== "(root)" && node.name !== "(items)";
+                const newName = canRename ? ((document.getElementById("modalFieldName")?.value || '').trim() || node.name) : node.name;
+                if (newName !== node.name) {
+                    const parentInfo = getParentContainerAndKey(node);
+                    if (!parentInfo) {
+                        toast("<b>Rename failed:</b> cannot locate parent container.");
+                        return;
+                    }
+                    if (parentInfo.container[newName]) {
+                        toast("<b>Rename failed:</b> field name already exists.");
+                        return;
+                    }
+                    parentInfo.container[newName] = newDef;
+                    delete parentInfo.container[parentInfo.key];
+                    const parentPath = node.path.split('.').slice(0, -1).join('.');
+                    activeId = parentPath ? `${parentPath}.${newName}` : newName;
+                } else {
+                    const defRef = getDefAtPath(node.path);
+                    Object.keys(defRef).forEach(k => delete defRef[k]);
+                    Object.assign(defRef, newDef);
+                    activeId = node.id;
+                }
+                toast("Saved field changes.");
+            } else {
+                const parentNode = modalState.opts.parentId ? getNodeById(modalState.opts.parentId) : null;
+                const newDef = makeDefinitionFromModal();
+                if (!parentNode || parentNode.name === "(root)") {
+                    ensureObjectType(schemaData);
+                    if (schemaData.properties[name]) {
+                        toast("<b>Already exists:</b> top-level field name is already used.");
+                        return;
+                    }
+                    schemaData.properties[name] = newDef;
+                    activeId = name;
+                } else {
+                    const parentDef = getDefAtPath(parentNode.path);
+                    let targetObj = null;
+                    const effectiveType = typeOfDef(parentDef);
+                    if (effectiveType === 'object' || parentDef.properties) {
+                        ensureObjectType(parentDef);
+                        targetObj = parentDef;
+                    } else if (effectiveType === 'array' || parentDef.items) {
+                        ensureArrayType(parentDef);
+                        ensureObjectType(parentDef.items);
+                        targetObj = parentDef.items;
+                    } else {
+                        ensureObjectType(parentDef);
+                        targetObj = parentDef;
+                    }
+                    if (targetObj.properties[name]) {
+                        toast("<b>Already exists:</b> a sub-field with that name exists.");
+                        return;
+                    }
+                    targetObj.properties[name] = newDef;
+                    activeId = parentNode.path ? `${parentNode.path}.${name}` : name;
+                    expanded.add(parentNode.id);
+                }
+                toast("Created field.");
+            }
+
+            setDirty(true);
+            activeTab = "view";
+            closeFieldModal();
+            refreshDerivedState(true);
+        }
+
+        function renderContent() {
+            if (!schemaData || !root) {
+                elContent.innerHTML = `<div class="empty">Choose a JSON file or click <b>New schema</b>.</div>`;
+                return;
+            }
+
+            const node = activeId ? getNodeById(activeId) : (root.children?.[0] || root);
+            const safeNode = node || root;
+
+            let body = "";
+            if (activeTab === "view") body = renderViewTab(safeNode);
+            if (activeTab === "raw") body = renderRawTab();
+
+            elContent.innerHTML = `${buildTabs()}${body}`;
+
+            elContent.querySelectorAll(".tab[data-tab]").forEach(t => {
+                t.addEventListener("click", () => {
+                    if (fieldDirty && activeTab === "view" && t.getAttribute("data-tab") !== "view") {
+                        const ok = confirm("This field has unsaved changes. Switch tab anyway?");
+                        if (!ok) return;
+                        setFieldDirty(false);
+                    }
+                    activeTab = t.getAttribute("data-tab");
+                    renderContent();
+                });
+            });
+
+            elContent.querySelectorAll("[data-nav]").forEach(el => {
+                el.addEventListener("click", () => {
+                    const id = el.getAttribute("data-nav");
+                    const target = getNodeById(id);
+                    if (target) {
+                        if (fieldDirty && activeTab === "view") {
+                            const ok = confirm("This field has unsaved changes. Navigate anyway?");
+                            if (!ok) return;
+                            setFieldDirty(false);
+                        }
+                        activeId = target.id;
+                        ensureExpandedTo(activeId);
+                        renderTree(elSearch.value);
+                        renderContent();
+                        const activeEl = elTree.querySelector(".node.active");
+                        if (activeEl) activeEl.scrollIntoView({block: "center"});
+                    }
+                });
+            });
+
+            if (activeTab === "view") bindEditActions(safeNode);
+            if (activeTab === "raw") bindRawActions();
+        }
+
+        function refreshDerivedState(keepActive = true) {
+            root = buildTree(schemaData, "(root)", "", null);
+            flat = flatten(root);
+
+            elCount.textContent = String(countDisplayFields(root));
+
+            if (!keepActive || (activeId && !getNodeById(activeId))) {
+                const first = root.children?.[0] || root;
+                activeId = first.id;
+            }
+            ensureExpandedTo(activeId);
+
+            if (expanded.size === 0) {
+                expanded = new Set(["(root)"]);
+                (root.children || []).forEach(ch => expanded.add(ch.id));
+            }
+
+            renderTree(elSearch.value);
+            renderContent();
+
+            try {
+                localStorage.setItem(LAST_SCHEMA_KEY, JSON.stringify(schemaData));
+            } catch {
+            }
+            try {
+                localStorage.setItem(EXPORT_NAME_KEY, exportNameInput.value || '');
+            } catch {
+            }
+        }
+
+        function applyCustomMetaFromUI(defRef, metaPairs) {
+            const keep = new Set(["type", "properties", "items", "enum", "enumValues", "x-label", "x-tooltip", "x-description", "x-required", "x-datacite-map"]);
+            for (const k of Object.keys(defRef)) {
+                if (k.startsWith("x-") && !keep.has(k)) delete defRef[k];
+            }
+            for (const [k, v] of metaPairs) {
+                const key = (k || "").trim();
+                if (!key) continue;
+                defRef["x-" + key] = v;
+            }
+        }
+
+        function openInfoModal(title, subtitle, html) {
+            fieldModalTitle.textContent = title || "Information";
+            fieldModalSubtitle.textContent = subtitle || "";
+            fieldModalBody.innerHTML = `${html}<div class="modalActions"><button class="btn primary" id="fieldModalOk" type="button">Close</button></div>`;
+            document.getElementById("fieldModalOk")?.addEventListener("click", closeFieldModal);
+            fieldModalBackdrop.classList.add("show");
+            fieldModalBackdrop.setAttribute("aria-hidden", "false");
+        }
+
+        function collectDataciteMappings() {
+            return flat
+                .filter(node => node.name !== "(root)" && node.name !== "(items)")
+                .map(node => ({
+                    source: node.path || node.name,
+                    target: getDataciteMap(node.def),
+                    label: getLabel(node.def, node.name),
+                    type: typeOfDef(node.def)
+                }))
+                .filter(item => item.target);
+        }
+
+        function hasDataciteCoverage(target, mappings) {
+            return mappings.some(item => {
+                const mapped = item.target;
+                if (mapped === target) return true;
+                if (target === "creators[].name" && (mapped === "creators" || mapped === "creators[]")) return true;
+                if (target === "titles[].title" && (mapped === "titles" || mapped === "titles[]")) return true;
+                if (target === "types.resourceTypeGeneral" && mapped === "types") return true;
+                return false;
+            });
+        }
+
+        function showDataciteRequiredCheck() {
+            if (!schemaData) {
+                toast("<b>Nothing to check:</b> create or load a schema first.");
+                return;
+            }
+            const mappings = collectDataciteMappings();
+            const missing = DATACITE_REQUIRED_MAPPINGS.filter(item => !hasDataciteCoverage(item.key, mappings));
+            const mappedHtml = mappings.length
+                ? `<div class="metaList">${mappings.map(item => `<div style="padding:8px 4px; border-top:1px solid color-mix(in srgb, var(--border) 85%, transparent);"><span class="mono">${esc(item.source)}</span> → <span class="mono">${esc(item.target)}</span></div>`).join("")}</div>`
+                : `<div class="empty" style="padding:12px;">No DataCite mappings defined yet.</div>`;
+            const missingHtml = missing.length
+                ? `<div class="metaList">${missing.map(item => `<div style="padding:8px 4px; border-top:1px solid color-mix(in srgb, var(--border) 85%, transparent);"><span class="mono">${esc(item.label)}</span></div>`).join("")}</div>`
+                : `<div class="empty" style="padding:12px; border-style:solid; color:var(--good);">All required DataCite 4.7 mappings are present.</div>`;
+            openInfoModal(
+                "DataCite required mapping check",
+                "Checks the DataCite 4.7 mandatory JSON properties used by the generated script.",
+                `<div class="split"><div class="field" style="margin:0;"><div class="childrenTitle" style="margin-top:0;">Missing required mappings</div>${missingHtml}</div><div class="field" style="margin:0;"><div class="childrenTitle" style="margin-top:0;">Current mappings</div>${mappedHtml}</div></div>`
+            );
+        }
+
+        function buildDatacitePythonScript() {
+            const mappings = collectDataciteMappings();
+            const serialized = JSON.stringify(mappings, null, 2);
+            return `#!/usr/bin/env python3
+"""Transform JSON in the custom schema into DataCite 4.7 JSON using mappings exported from the schema editor.
+
+Supports:
+- direct field mappings (e.g. title -> publisher)
+- singleton to array-object mappings (e.g. title -> titles[].title)
+- array-object group mappings (e.g. authors[].name -> creators[].name)
+- array-primitive to array-object mappings (e.g. keywords[] -> subjects[].subject)
+"""
+
+import copy
+import json
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+MAPPINGS = ${serialized}
+
+
+EMPTY_VALUES = (None, "", [], {})
+
+
+def split_path(path: str):
+    return [part for part in (path or "").split(".") if part]
+
+
+def cleanup(value):
+    if isinstance(value, dict):
+        cleaned = {k: cleanup(v) for k, v in value.items()}
+        return {k: v for k, v in cleaned.items() if v not in EMPTY_VALUES}
+    if isinstance(value, list):
+        cleaned = [cleanup(v) for v in value]
+        return [v for v in cleaned if v not in EMPTY_VALUES]
+    return value
+
+
+def get_value(data, path: str):
+    cur = data
+    for part in split_path(path):
+        is_array = part.endswith("[]")
+        key = part[:-2] if is_array else part
+        if not isinstance(cur, dict) or key not in cur:
+            return None
+        cur = cur[key]
+        if is_array:
+            if cur is None:
+                return []
+            if isinstance(cur, list):
+                return cur
+            return [cur]
+    return cur
+
+
+def ensure_list(container, key):
+    value = container.get(key)
+    if not isinstance(value, list):
+        value = [] if value in (None, "") else ([value] if not isinstance(value, list) else value)
+        container[key] = value
+    return value
+
+
+def set_value(data, path: str, value):
+    parts = split_path(path)
+    if not parts:
+        return
+    cur = data
+    for part in parts[:-1]:
+        if part.endswith("[]"):
+            key = part[:-2]
+            items = ensure_list(cur, key)
+            if not items or not isinstance(items[-1], dict):
+                items.append({})
+            cur = items[-1]
+        else:
+            cur = cur.setdefault(part, {})
+    last = parts[-1]
+    if last.endswith("[]"):
+        key = last[:-2]
+        cur[key] = value if isinstance(value, list) else [value]
+    else:
+        cur[last] = value
+
+
+def get_target_group_key(path: str):
+    parts = split_path(path)
+    acc = []
+    for part in parts:
+        acc.append(part)
+        if part.endswith("[]"):
+            return ".".join(acc)
+    return None
+
+
+def get_source_group_key(path: str):
+    parts = split_path(path)
+    acc = []
+    for part in parts:
+        acc.append(part)
+        if part.endswith("[]"):
+            return ".".join(acc)
+    return None
+
+
+def target_leaf_after_group(path: str):
+    group = get_target_group_key(path)
+    if not group:
+        return path
+    rest = path[len(group):].lstrip(".")
+    return rest
+
+
+def source_leaf_after_group(path: str):
+    group = get_source_group_key(path)
+    if not group:
+        return path
+    rest = path[len(group):].lstrip(".")
+    return rest
+
+
+def append_group_item(output, group_key: str, item):
+    if item in EMPTY_VALUES:
+        return
+    parts = split_path(group_key)
+    cur = output
+    for part in parts[:-1]:
+        if part.endswith("[]"):
+            key = part[:-2]
+            items = ensure_list(cur, key)
+            if not items or not isinstance(items[-1], dict):
+                items.append({})
+            cur = items[-1]
+        else:
+            cur = cur.setdefault(part, {})
+    last = parts[-1]
+    if not last.endswith("[]"):
+        raise ValueError(f"Group key must end with []: {group_key}")
+    ensure_list(cur, last[:-2]).append(item)
+
+
+def build_singleton_group_item(input_json, rules):
+    item = {}
+    scalar_target = None
+    scalar_value = None
+    for rule in rules:
+        value = get_value(input_json, rule["source"])
+        if value in EMPTY_VALUES:
+            continue
+        target_leaf = target_leaf_after_group(rule["target"])
+        if not target_leaf:
+            scalar_value = copy.deepcopy(value)
+            continue
+        if isinstance(value, list) and not isinstance(value, (str, bytes)):
+            if len(value) == 1:
+                value = value[0]
+            else:
+                value = copy.deepcopy(value)
+        set_value(item, target_leaf, copy.deepcopy(value))
+        scalar_target = target_leaf
+    if item not in EMPTY_VALUES:
+        return item
+    if scalar_value not in EMPTY_VALUES:
+        return scalar_value
+    return None
+
+
+def build_items_from_source_group(input_json, source_group_key, rules):
+    source_items = get_value(input_json, source_group_key)
+    if not isinstance(source_items, list):
+        if source_items in EMPTY_VALUES:
+            return []
+        source_items = [source_items]
+    output_items = []
+    for source_item in source_items:
+        target_item = {}
+        scalar_value = None
+        for rule in rules:
+            source_leaf = source_leaf_after_group(rule["source"])
+            if source_leaf:
+                if isinstance(source_item, dict):
+                    value = get_value(source_item, source_leaf)
+                else:
+                    value = None
+            else:
+                value = source_item
+            if value in EMPTY_VALUES:
+                continue
+            target_leaf = target_leaf_after_group(rule["target"])
+            if not target_leaf:
+                scalar_value = copy.deepcopy(value)
+                continue
+            set_value(target_item, target_leaf, copy.deepcopy(value))
+        if target_item not in EMPTY_VALUES:
+            output_items.append(target_item)
+        elif scalar_value not in EMPTY_VALUES:
+            output_items.append(copy.deepcopy(scalar_value))
+    return output_items
+
+
+def merge_group_rules(input_json, rules):
+    by_source_group = defaultdict(list)
+    singleton_rules = []
+    for rule in rules:
+        source_group = get_source_group_key(rule["source"])
+        if source_group:
+            by_source_group[source_group].append(rule)
+        else:
+            singleton_rules.append(rule)
+
+    output_items = []
+    if singleton_rules:
+        singleton_item = build_singleton_group_item(input_json, singleton_rules)
+        if singleton_item not in EMPTY_VALUES:
+            output_items.append(singleton_item)
+
+    for source_group_key, grouped_rules in by_source_group.items():
+        output_items.extend(build_items_from_source_group(input_json, source_group_key, grouped_rules))
+
+    return output_items
+
+
+def transform(input_json):
+    output = {}
+
+    direct_rules = [rule for rule in MAPPINGS if "[]" not in rule["target"]]
+    grouped_rules = defaultdict(list)
+    for rule in MAPPINGS:
+        group_key = get_target_group_key(rule["target"])
+        if group_key:
+            grouped_rules[group_key].append(rule)
+
+    for rule in direct_rules:
+        value = get_value(input_json, rule["source"])
+        if value in EMPTY_VALUES:
+            continue
+        set_value(output, rule["target"], copy.deepcopy(value))
+
+    for group_key, rules in grouped_rules.items():
+        items = merge_group_rules(input_json, rules)
+        for item in items:
+            append_group_item(output, group_key, copy.deepcopy(item))
+
+    return cleanup(output)
+
+
+def main(argv):
+    if len(argv) > 1:
+        input_json = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
+    else:
+        input_json = json.load(sys.stdin)
+    json.dump(transform(input_json), sys.stdout, indent=2, ensure_ascii=False)
+    sys.stdout.write("\\n")
+
+
+if __name__ == "__main__":
+    main(sys.argv)
+`;
+        }
+
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function randomChoice(list) {
+            return Array.isArray(list) && list.length ? list[randomInt(0, list.length - 1)] : null;
+        }
+
+        function titleCaseFromName(name) {
+            return String(name || "value")
+                .replace(/\[\]$/g, "")
+                .replace(/[_-]+/g, " ")
+                .replace(/([a-z])([A-Z])/g, "$1 $2")
+                .replace(/\s+/g, " ")
+                .trim()
+                .replace(/\b\w/g, ch => ch.toUpperCase());
+        }
+
+        function randomStringForField(name) {
+            const base = titleCaseFromName(name);
+            const key = String(name || "").toLowerCase();
+
+            if (/(email|e-mail)/.test(key)) return `test${randomInt(100, 999)}@example.org`;
+            if (/(doi)/.test(key)) return `10.${randomInt(1000, 9999)}/${Math.random().toString(36).slice(2, 10)}`;
+            if (/(orcid)/.test(key)) return `${randomInt(1000, 9999)}-${randomInt(1000, 9999)}-${randomInt(1000, 9999)}-${randomInt(1000, 9999)}`;
+            if (/(url|uri|link|website)/.test(key)) return `https://example.org/${Math.random().toString(36).slice(2, 8)}`;
+            if (/(date)/.test(key)) return new Date(Date.now() - randomInt(0, 3650) * 86400000).toISOString().slice(0, 10);
+            if (/(year)/.test(key)) return String(randomInt(1995, 2035));
+            if (/(name|title|label|publisher|creator|author|contributor)/.test(key)) return `${base} ${randomInt(1, 999)}`;
+            if (/(description|abstract|summary|note|comment)/.test(key)) return `Sample ${base.toLowerCase()} text ${randomInt(1000, 9999)}.`;
+            if (/(language)/.test(key)) return randomChoice(["en", "cs", "de", "fr"]);
+            if (/(format)/.test(key)) return randomChoice(["application/json", "text/csv", "application/pdf"]);
+            if (/(version)/.test(key)) return `${randomInt(1, 9)}.${randomInt(0, 9)}.${randomInt(0, 9)}`;
+            return `${base} ${Math.random().toString(36).slice(2, 8)}`;
+        }
+
+        function randomPrimitiveValue(def, fieldName) {
+            const enums = getEnums(def);
+            if (Array.isArray(enums) && enums.length) return deepClone(randomChoice(enums));
+
+            switch (typeOfDef(def)) {
+                case "integer":
+                    return randomInt(0, 9999);
+                case "number":
+                    return Number((Math.random() * 1000).toFixed(3));
+                case "boolean":
+                    return Math.random() < 0.5;
+                case "string":
+                default:
+                    return randomStringForField(fieldName);
+            }
+        }
+
+        function buildRandomValueFromDef(def, fieldName = "value") {
+            const type = typeOfDef(def);
+
+            if (type === "object" || (def && def.properties)) {
+                const out = {};
+                const children = def?.properties && typeof def.properties === "object" ? Object.entries(def.properties) : [];
+                for (const [childName, childDef] of children) out[childName] = buildRandomValueFromDef(childDef, childName);
+                return out;
+            }
+
+            if (type === "array" || def?.items) {
+                const count = randomInt(1, 2);
+                return Array.from({length: count}, () => buildRandomValueFromDef(def.items || {type: "string"}, fieldName.replace(/\[\]$/g, "")));
+            }
+
+            return randomPrimitiveValue(def || {type: "string"}, fieldName);
+        }
+
+        function generateRandomTestJson() {
+            if (!schemaData || !schemaData.properties || !Object.keys(schemaData.properties).length) return {};
+            const out = {};
+            for (const [fieldName, fieldDef] of Object.entries(schemaData.properties)) out[fieldName] = buildRandomValueFromDef(fieldDef, fieldName);
+            return out;
+        }
+
+        function downloadText(filename, text, mimeType = "text/plain;charset=utf-8") {
+            const blob = new Blob([text], {type: mimeType});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function bindEditActions(node) {
+            setFieldDirty(false);
+
+            document.getElementById("openEditFieldForm")?.addEventListener("click", () => openFieldModal("edit", {nodeId: node.id}));
+            document.getElementById("openAddChildForm")?.addEventListener("click", () => openFieldModal("create", {parentId: node.id}));
+
+            document.getElementById("deleteField")?.addEventListener("click", () => {
+                const parentInfo = getParentContainerAndKey(node);
+                if (!parentInfo) return;
+                if (!confirm(`Delete field "${node.name}"?`)) return;
+                delete parentInfo.container[parentInfo.key];
+                toast("Deleted field.");
+                activeId = node.parentId || "(root)";
+                setDirty(true);
+                refreshDerivedState(true);
+            });
+
+        }
+
+        function bindRawActions() {
+            const rawEditor = document.getElementById("rawEditor");
+            const applyBtn = document.getElementById("applyRaw");
+            const copyBtn = document.getElementById("copyRaw");
+
+            rawEditor?.addEventListener("input", () => setDirty(true));
+            copyBtn?.addEventListener("click", async () => {
+                try {
+                    await navigator.clipboard.writeText(rawEditor.value);
+                    toast("Copied to clipboard.");
+                } catch {
+                    toast("<b>Copy failed.</b> Your browser blocked clipboard access.");
+                }
+            });
+
+            applyBtn?.addEventListener("click", () => {
+                try {
+                    const parsed = JSON.parse(rawEditor.value);
+                    schemaData = normalizeInputToSchemaData(parsed);
+                    elLoaded.textContent = "edited (raw)";
+                    toast("Applied raw JSON.");
+                    setDirty(true);
+                    activeTab = "view";
+                    expanded = new Set(["(root)"]);
+                    refreshDerivedState(false);
+                } catch (e) {
+                    toast(`<b>Invalid JSON:</b> ${esc(e?.message || String(e))}`, 4200);
+                }
+            });
+        }
+
+        async function loadFile(file) {
+            const txt = await file.text();
+            const obj = JSON.parse(txt);
+
+            schemaData = normalizeInputToSchemaData(obj);
+            elLoaded.textContent = file.name;
+            exportNameInput.value = file.name.replace(/\.[^/.]+$/, '');
+
+            expanded = new Set(["(root)"]);
+            root = buildTree(schemaData, "(root)", "", null);
+            flat = flatten(root);
+            elCount.textContent = String(countDisplayFields(root));
+            (root.children || []).forEach(ch => expanded.add(ch.id));
+
+            const first = (root.children && root.children.length) ? root.children[0] : root;
+            activeId = first.id;
+            ensureExpandedTo(activeId);
+            activeTab = "view";
+
+            setDirty(false);
+            setFieldDirty(false);
+            renderTree("");
+            renderContent();
+
+            try {
+                localStorage.setItem(LAST_SCHEMA_KEY, JSON.stringify(schemaData));
+            } catch {
+            }
+        }
+
+        function newSchema() {
+            schemaData = {type: "object", properties: {}};
+            elLoaded.textContent = "new";
+            exportNameInput.value = exportNameInput.value || 'schema';
+            expanded = new Set(["(root)"]);
+            activeId = null;
+            activeTab = "view";
+            setDirty(true);
+            setFieldDirty(false);
+            refreshDerivedState(false);
+            toast("New schema created.");
+        }
+
+        function downloadJson(filename, jsonText) {
+            downloadText(filename, jsonText, "application/json;charset=utf-8");
+        }
+
+        function exportSchema() {
+            if (!schemaData) {
+                toast("<b>Nothing to export:</b> create or load a schema first.");
+                return;
+            }
+            const out = schemaData.properties || {};
+            const text = JSON.stringify(out, null, 2);
+            const fallback = (elLoaded.textContent && elLoaded.textContent !== "none") ? elLoaded.textContent.replace(/\.[^/.]+$/, "") : "schema";
+            const baseName = (exportNameInput.value || '').trim() || fallback || 'schema';
+            exportNameInput.value = baseName;
+            downloadJson(baseName.replace(/\.json$/i, '') + ".json", text);
+            toast("Exported JSON file.");
+            setDirty(false);
+            try {
+                localStorage.setItem(EXPORT_NAME_KEY, exportNameInput.value || '');
+            } catch {
+            }
+        }
+
+        elFile.addEventListener("change", async () => {
+            const f = elFile.files && elFile.files[0];
+            if (!f) return;
+            try {
+                await loadFile(f);
+            } catch (e) {
+                elLoaded.textContent = "error";
+                elCount.textContent = "0";
+                elTree.innerHTML = "";
+                elContent.innerHTML = `<div class="empty"><b>Could not load JSON</b><div style="margin-top:6px;font-family:var(--mono);font-size:12px">${esc(e?.message || String(e))}</div></div>`;
+                toast("<b>Load failed.</b> See error on screen.", 4200);
+                setDirty(false);
+                setFieldDirty(false);
+            }
+        });
+
+        elSearch.addEventListener("input", () => {
+            if (root) renderTree(elSearch.value);
+        });
+
+        btnExpandAll.addEventListener("click", () => {
+            if (!root) return;
+            expanded = new Set();
+            flat.forEach(n => {
+                if ((n.children || []).length) expanded.add(n.id);
+            });
+            renderTree(elSearch.value);
+        });
+
+        btnCollapseAll.addEventListener("click", () => {
+            if (!root) return;
+            expanded = new Set();
+            renderTree(elSearch.value);
+        });
+
+        btnNew.addEventListener("click", () => {
+            if (schemaData && Object.keys(schemaData.properties || {}).length) {
+                const ok = confirm("Create a new schema? Unsaved changes will be lost (unless you exported).");
+                if (!ok) return;
+            }
+            newSchema();
+        });
+
+        btnExport.addEventListener("click", exportSchema);
+        btnCheckDatacite.addEventListener("click", showDataciteRequiredCheck);
+        btnDownloadDataciteScript.addEventListener("click", () => {
+            if (!schemaData) {
+                toast("<b>Nothing to export:</b> create or load a schema first.");
+                return;
+            }
+            const fallback = (exportNameInput.value || '').trim() || 'schema';
+            downloadText(`${fallback.replace(/\.json$/i, '')}_to_datacite.py`, buildDatacitePythonScript(), "text/x-python;charset=utf-8");
+            toast("Generated Python mapping script.");
+        });
+
+        btnDownloadRandomTestJson?.addEventListener("click", () => {
+            if (!schemaData) {
+                toast("<b>Nothing to generate:</b> create or load a schema first.");
+                return;
+            }
+            const randomDoc = generateRandomTestJson();
+            const fallback = (exportNameInput.value || '').trim() || (elLoaded.textContent && elLoaded.textContent !== "none" ? elLoaded.textContent.replace(/\.[^/.]+$/, "") : "schema") || "schema";
+            downloadJson(`${fallback.replace(/\.json$/i, '')}_random_test.json`, JSON.stringify(randomDoc, null, 2));
+            toast("Generated random test JSON.");
+        });
+
+        btnAddTop.addEventListener("click", () => {
+            if (!schemaData) newSchema();
+            activeTab = "view";
+            openFieldModal("create", {parentId: "(root)"});
+        });
+
+        (function restoreAutosave() {
+            try {
+                const saved = localStorage.getItem(LAST_SCHEMA_KEY);
+                if (!saved) return;
+                const obj = JSON.parse(saved);
+                if (!obj || typeof obj !== "object" || !obj.properties) return;
+                schemaData = obj;
+                elLoaded.textContent = "autosaved";
+                try {
+                    exportNameInput.value = localStorage.getItem(EXPORT_NAME_KEY) || 'schema';
+                } catch {
+                }
+                expanded = new Set(["(root)"]);
+                activeTab = "view";
+                setDirty(false);
+                setFieldDirty(false);
+                refreshDerivedState(false);
+                toast("Restored autosaved schema.", 2400);
+            } catch {
+            }
+        })();
+    })();
+</script>
+</body>
+</html>
