@@ -1055,6 +1055,174 @@
             justify-content: flex-end;
             margin-top: 14px;
         }
+
+        /* ── YAML Modal ── */
+        .yamlModalCard {
+            width: min(1200px, 98vw);
+            max-height: min(92vh, 1000px);
+        }
+
+        .yamlModalBody {
+            overflow-y: auto;
+            max-height: calc(min(92vh, 1000px) - 140px);
+            padding: 4px 0;
+        }
+
+        .yamlFieldRow {
+            display: grid;
+            grid-template-columns: minmax(140px, 1.2fr) 1fr 1fr 1fr;
+            gap: 6px 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 6px;
+            background: var(--card);
+            transition: background .12s ease;
+        }
+
+        .yamlFieldRow:hover {
+            background: var(--surface);
+        }
+
+        .yamlFieldRow.is-object {
+            border-left: 3px solid color-mix(in srgb, var(--accent) 50%, transparent);
+        }
+
+        .yamlFieldRow.collapsed-children .yamlFieldChildren {
+            display: none;
+        }
+
+        .yamlFieldName {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            grid-column: 1 / -1;
+            margin-bottom: 2px;
+        }
+
+        .yamlFieldName .fname {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 800;
+            word-break: break-word;
+        }
+
+        .yamlFieldName .fpath {
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: 4px;
+        }
+
+        .yamlFieldName .yamlToggle {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            flex: 0 0 auto;
+            color: var(--text);
+        }
+
+        .yamlFieldName .yamlToggle:hover {
+            background: var(--accentSoft);
+        }
+
+        .yamlFieldName .yamlToggle.hidden {
+            visibility: hidden;
+        }
+
+        .yamlFieldInput {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .yamlFieldInput label {
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .yamlFieldInput input,
+        .yamlFieldInput select,
+        .yamlFieldInput textarea {
+            font-family: var(--sans);
+            font-size: 12px;
+            padding: 5px 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .yamlFieldInput textarea {
+            resize: vertical;
+            min-height: 28px;
+            max-height: 80px;
+        }
+
+        .yamlFieldInput select {
+            cursor: pointer;
+        }
+
+        .yamlFieldInput input:focus,
+        .yamlFieldInput select:focus,
+        .yamlFieldInput textarea:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: -1px;
+        }
+
+        .yamlFieldCheckbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .yamlFieldCheckbox input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        .yamlFieldExtra {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 6px 10px;
+            margin-top: 4px;
+            padding-top: 6px;
+            border-top: 1px dashed color-mix(in srgb, var(--border) 60%, transparent);
+        }
+
+        .yamlFieldChildren {
+            margin-left: 18px;
+            padding-left: 10px;
+            border-left: 2px solid color-mix(in srgb, var(--border) 50%, transparent);
+        }
+
+        .yamlSectionTitle {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin: 14px 0 6px 0;
+        }
+
+        .yamlSectionTitle:first-child {
+            margin-top: 0;
+        }
     </style>
 </head>
 <body>
@@ -1144,6 +1312,19 @@
             <button class="btn modalClose" id="fieldModalClose" type="button" aria-label="Close">×</button>
         </div>
         <div id="fieldModalBody"></div>
+    </div>
+</div>
+
+<div class="modalBackdrop" id="yamlModalBackdrop" aria-hidden="true">
+    <div class="modalCard yamlModalCard">
+        <div class="modalHeader">
+            <div class="modalTitle">
+                <h3>Generate Metadata YAML</h3>
+                <div class="smallHelp">Review and edit field properties before generating. Changes here only affect the YAML output.</div>
+            </div>
+            <button class="btn modalClose" id="yamlModalClose" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="yamlModalBody"></div>
     </div>
 </div>
 
@@ -2151,7 +2332,6 @@
 
                     row.appendChild(toggle);
                     row.appendChild(k);
-                    row.appendChild(t);
 
                     if (n.required) {
                         const req = document.createElement("div");
@@ -2159,6 +2339,8 @@
                         req.textContent = "required";
                         row.appendChild(req);
                     }
+
+                    row.appendChild(t);
 
                     row.draggable = n.name !== "(root)" && n.name !== "(items)";
 
@@ -2304,8 +2486,8 @@
       ${children.map(ch => `
         <div class="childCard" data-nav="${esc(ch.id)}">
           <div style="flex:1; min-width:0"><div class="cname">${esc(ch.name)}</div><div class="clabel">${esc(ch.label || "")}</div></div>
-          <div class="t">${esc(ch.type)}</div>
           ${ch.required ? `<div class="t req">required</div>` : ``}
+          <div class="t">${esc(ch.type)}</div>
         </div>
       `).join("")}
     ` : `<div class="childrenTitle">Sub-fields</div><div class="empty" style="padding:12px">No nested fields.</div>`;
@@ -2326,8 +2508,8 @@
             <div class="main">
               <span>${esc(node.name)}</span>
               ${tip ? `<span class="tooltip" data-tip="${esc(tip)}">?</span>` : ``}
-              ${badgeType}
               ${badgeReq}
+              ${badgeType}
             </div>
             <div class="path">${esc(node.path || node.name)}</div>
           </div>
@@ -2392,8 +2574,8 @@
           <div class="title">
             <div class="main">
               <span>Field editor</span>
-              <span class="badge type">type: ${esc(type)}</span>
               ${getReq(d) ? `<span class="badge req">required</span>` : ``}
+              <span class="badge type">type: ${esc(type)}</span>
             </div>
             <div class="path">${esc(node.path || node.name)}</div>
           </div>
@@ -3528,19 +3710,412 @@ if __name__ == "__main__":
             toast("Generated random test JSON.");
         });
 
+        /* ── YAML Preview Modal ── */
+        const YAML_TYPES = [
+            "keyword", "fulltext", "fulltext+keyword",
+            "boolean",
+            "int", "long", "float", "double",
+            "date", "datetime", "time", "edtf-time", "edtf", "edtf-interval",
+            "i18n", "multilingual", "i18ndict",
+            "object", "nested", "array",
+            "dynamic-object", "polymorphic",
+            "vocabulary", "pid-relation"
+        ];
+        const NUMERIC_TYPES = new Set(["int", "long", "float", "double"]);
+        const STRING_TYPES = new Set(["keyword", "fulltext", "fulltext+keyword"]);
+
+        const yamlModalBackdrop = document.getElementById("yamlModalBackdrop");
+        const yamlModalBody = document.getElementById("yamlModalBody");
+        const yamlModalClose = document.getElementById("yamlModalClose");
+
+        yamlModalClose?.addEventListener("click", closeYamlModal);
+        yamlModalBackdrop?.addEventListener("click", (ev) => {
+            if (ev.target === yamlModalBackdrop) closeYamlModal();
+        });
+
+        function closeYamlModal() {
+            yamlModalBackdrop.classList.remove("show");
+            yamlModalBackdrop.setAttribute("aria-hidden", "true");
+            yamlModalBody.innerHTML = "";
+        }
+
+        function openYamlModal() {
+            const html = buildYamlModalHtml();
+            yamlModalBody.innerHTML = html;
+            yamlModalBackdrop.classList.add("show");
+            yamlModalBackdrop.setAttribute("aria-hidden", "false");
+            bindYamlModalEvents();
+        }
+
+        function collectYamlFieldRows(def, fieldName, path, depth) {
+            const rows = [];
+            const type = typeOfDef(def);
+            const yamlType = jsonTypeToYamlType(type);
+            const label = getLabel(def, "");
+            const desc = getDesc(def);
+            const tooltip = getTooltip(def);
+            const req = getReq(def);
+            const enums = getEnums(def);
+            const pattern = def?.pattern || "";
+            const isObj = type === "object" || !!def?.properties;
+            const isArr = type === "array" || !!def?.items;
+            const children = [];
+
+            if (isObj && def?.properties) {
+                for (const [k, v] of Object.entries(def.properties)) {
+                    const childPath = path ? `${path}.${k}` : k;
+                    children.push(...collectYamlFieldRows(v, k, childPath, depth + 1));
+                }
+            } else if (isArr && def?.items) {
+                const itemDef = def.items;
+                const itemType = typeOfDef(itemDef);
+                if ((itemType === "object" || itemDef?.properties) && itemDef.properties) {
+                    for (const [k, v] of Object.entries(itemDef.properties)) {
+                        const childPath = path ? `${path}[].${k}` : `${fieldName}[].${k}`;
+                        children.push(...collectYamlFieldRows(v, k, childPath, depth + 1));
+                    }
+                }
+            }
+
+            rows.push({
+                fieldName, path, depth, type, yamlType, label, desc, tooltip,
+                req, enums, pattern, isObj, isArr, children,
+                /* extra props based on type */
+                minInclusive: def?.min_inclusive ?? def?.minInclusive ?? "",
+                maxInclusive: def?.max_inclusive ?? def?.maxInclusive ?? "",
+                minLength: def?.min_length ?? def?.minLength ?? "",
+                maxLength: def?.max_length ?? def?.maxLength ?? "",
+                minItems: def?.min_items ?? def?.minItems ?? "",
+                maxItems: def?.max_items ?? def?.maxItems ?? "",
+                uniqueItems: def?.unique_items ?? def?.uniqueItems ?? false,
+            });
+            rows.push(...children);
+            return rows;
+        }
+
+        function buildYamlModalHtml() {
+            if (!schemaData?.properties) return '<div class="empty">No fields in schema.</div>';
+            const allRows = [];
+            for (const [k, v] of Object.entries(schemaData.properties)) {
+                allRows.push(...collectYamlFieldRows(v, k, k, 0));
+            }
+            if (!allRows.length) return '<div class="empty">No fields in schema.</div>';
+
+            let html = `<div class="yamlModalBody">`;
+            html += `<div style="position:sticky; top:0; z-index:2; background:var(--card); padding:6px 0 10px 0;">`;
+            html += `<input type="search" id="yamlModalSearch" placeholder="Search by field name…" style="width:100%; font-size:13px; padding:7px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-family:var(--sans); box-sizing:border-box;">`;
+            html += `</div>`;
+            html += `<div class="yamlSectionTitle">Schema fields — edit properties for YAML output</div>`;
+
+            for (let i = 0; i < allRows.length; i++) {
+                const r = allRows[i];
+                const rid = `yf_${i}`;
+                const hasKids = r.children.length > 0;
+                const isNumeric = NUMERIC_TYPES.has(r.yamlType);
+                const isString = STRING_TYPES.has(r.yamlType);
+                const isArray = r.isArr;
+
+                const typeOptions = YAML_TYPES.map(t =>
+                    `<option value="${esc(t)}" ${t === r.yamlType ? "selected" : ""}>${esc(t)}</option>`
+                ).join("");
+
+                html += `<div class="yamlFieldRow ${hasKids ? "is-object" : ""}" data-yaml-idx="${i}" data-yaml-path="${esc(r.path)}" data-yaml-name="${esc(r.fieldName)}" style="margin-left:${r.depth * 22}px">`;
+
+                /* Row 1: name + path + toggle */
+                html += `<div class="yamlFieldName">`;
+                html += `<span class="yamlToggle ${hasKids ? "" : "hidden"}" data-toggle-idx="${i}">${hasKids ? "▾" : ""}</span>`;
+                html += `<span class="fname">${esc(r.fieldName)}</span>`;
+                if (r.path && r.path !== r.fieldName) html += `<span class="fpath">${esc(r.path)}</span>`;
+                html += `</div>`;
+
+                /* Row 2: type + label + help + hint */
+                html += `<div class="yamlFieldInput"><label>Type</label><select data-field="type" data-idx="${i}">${typeOptions}</select></div>`;
+                html += `<div class="yamlFieldInput"><label>Label (en)</label><input type="text" data-field="label" data-idx="${i}" value="${esc(r.label)}" placeholder="Human-readable label"></div>`;
+                html += `<div class="yamlFieldInput"><label>Help (en)</label><input type="text" data-field="help" data-idx="${i}" value="${esc(r.desc)}" placeholder="Help text for the field"></div>`;
+                html += `<div class="yamlFieldInput"><label>Hint (en)</label><input type="text" data-field="hint" data-idx="${i}" value="${esc(r.tooltip)}" placeholder="Short hint or tooltip"></div>`;
+
+                /* Row 3: extra fields */
+                html += `<div class="yamlFieldExtra">`;
+                html += `<div class="yamlFieldCheckbox"><input type="checkbox" data-field="required" data-idx="${i}" ${r.req ? "checked" : ""}><span>Required</span></div>`;
+                html += `<div class="yamlFieldInput"><label>Pattern</label><input type="text" data-field="pattern" data-idx="${i}" value="${esc(r.pattern)}" placeholder="Regex pattern"></div>`;
+                html += `<div class="yamlFieldInput"><label>Enum (comma-sep)</label><input type="text" data-field="enum" data-idx="${i}" value="${esc(Array.isArray(r.enums) ? r.enums.join(", ") : "")}" placeholder='e.g. draft, published'></div>`;
+
+                /* Numeric min/max */
+                html += `<div class="yamlFieldInput" data-extra="numeric" data-idx="${i}" style="${isNumeric ? "" : "display:none"}"><label>Min value</label><input type="text" data-field="minInclusive" data-idx="${i}" value="${esc(String(r.minInclusive))}" placeholder="Min inclusive"></div>`;
+                html += `<div class="yamlFieldInput" data-extra="numeric" data-idx="${i}" style="${isNumeric ? "" : "display:none"}"><label>Max value</label><input type="text" data-field="maxInclusive" data-idx="${i}" value="${esc(String(r.maxInclusive))}" placeholder="Max inclusive"></div>`;
+
+                /* String min/max length */
+                html += `<div class="yamlFieldInput" data-extra="string" data-idx="${i}" style="${isString ? "" : "display:none"}"><label>Min length</label><input type="number" data-field="minLength" data-idx="${i}" value="${esc(String(r.minLength))}" placeholder="0"></div>`;
+                html += `<div class="yamlFieldInput" data-extra="string" data-idx="${i}" style="${isString ? "" : "display:none"}"><label>Max length</label><input type="number" data-field="maxLength" data-idx="${i}" value="${esc(String(r.maxLength))}" placeholder="256"></div>`;
+
+                /* Array min/max items + unique */
+                html += `<div class="yamlFieldInput" data-extra="array" data-idx="${i}" style="${isArray ? "" : "display:none"}"><label>Min items</label><input type="number" data-field="minItems" data-idx="${i}" value="${esc(String(r.minItems))}" placeholder="0"></div>`;
+                html += `<div class="yamlFieldInput" data-extra="array" data-idx="${i}" style="${isArray ? "" : "display:none"}"><label>Max items</label><input type="number" data-field="maxItems" data-idx="${i}" value="${esc(String(r.maxItems))}" placeholder="∞"></div>`;
+                html += `<div class="yamlFieldCheckbox" data-extra="array" data-idx="${i}" style="${isArray ? "" : "display:none"}"><input type="checkbox" data-field="uniqueItems" data-idx="${i}" ${r.uniqueItems ? "checked" : ""}><span>Unique items</span></div>`;
+
+                html += `</div>`; /* yamlFieldExtra */
+                html += `</div>`; /* yamlFieldRow */
+            }
+
+            html += `</div>`; /* yamlModalBody */
+            html += `<div class="modalActions">`;
+            html += `<button class="btn" id="yamlModalCancel" type="button">Cancel</button>`;
+            html += `<button class="btn primary" id="yamlModalGenerate" type="button">Generate &amp; Download</button>`;
+            html += `</div>`;
+            return html;
+        }
+
+        function bindYamlModalEvents() {
+            document.getElementById("yamlModalCancel")?.addEventListener("click", closeYamlModal);
+
+            /* Search filter */
+            const yamlSearch = document.getElementById("yamlModalSearch");
+            yamlSearch?.addEventListener("input", () => {
+                const q = (yamlSearch.value || "").trim().toLowerCase();
+                yamlModalBody.querySelectorAll(".yamlFieldRow").forEach(row => {
+                    if (!q) {
+                        row.style.display = "";
+                        return;
+                    }
+                    const name = (row.getAttribute("data-yaml-name") || "").toLowerCase();
+                    const path = (row.getAttribute("data-yaml-path") || "").toLowerCase();
+                    row.style.display = (name.includes(q) || path.includes(q)) ? "" : "none";
+                });
+            });
+            document.getElementById("yamlModalGenerate")?.addEventListener("click", () => {
+                const yamlText = generateYamlFromModal();
+                if (!yamlText) {
+                    toast("<b>Nothing to generate:</b> schema has no fields.");
+                    return;
+                }
+                const fallback = (exportNameInput.value || '').trim() || (elLoaded.textContent && elLoaded.textContent !== "none" ? elLoaded.textContent.replace(/\.[^/.]+$/, "") : "schema") || "schema";
+                downloadText(`${fallback.replace(/\.json$/i, '')}_metadata.yaml`, yamlText, "text/yaml;charset=utf-8");
+                toast("Generated metadata YAML.");
+                closeYamlModal();
+            });
+
+            /* Toggle collapse/expand for object children */
+            yamlModalBody.querySelectorAll(".yamlToggle:not(.hidden)").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const idx = parseInt(btn.getAttribute("data-toggle-idx"), 10);
+                    const row = yamlModalBody.querySelector(`.yamlFieldRow[data-yaml-idx="${idx}"]`);
+                    if (!row) return;
+                    const isCollapsed = btn.textContent.trim() === "▸";
+                    btn.textContent = isCollapsed ? "▾" : "▸";
+                    /* Find child rows (those whose path starts with this row's path + ".") */
+                    const parentPath = row.getAttribute("data-yaml-path");
+                    yamlModalBody.querySelectorAll(".yamlFieldRow").forEach(r => {
+                        const rPath = r.getAttribute("data-yaml-path");
+                        if (rPath && rPath !== parentPath && (rPath.startsWith(parentPath + ".") || rPath.startsWith(parentPath + "[]."))) {
+                            r.style.display = isCollapsed ? "" : "none";
+                        }
+                    });
+                });
+            });
+
+            /* Type dropdown change - show/hide extra fields */
+            yamlModalBody.querySelectorAll('select[data-field="type"]').forEach(sel => {
+                sel.addEventListener("change", () => {
+                    const idx = sel.getAttribute("data-idx");
+                    const val = sel.value;
+                    const isNum = NUMERIC_TYPES.has(val);
+                    const isStr = STRING_TYPES.has(val);
+                    const isArr = val.endsWith("[]") || val === "array";
+                    yamlModalBody.querySelectorAll(`[data-extra="numeric"][data-idx="${idx}"]`).forEach(el => el.style.display = isNum ? "" : "none");
+                    yamlModalBody.querySelectorAll(`[data-extra="string"][data-idx="${idx}"]`).forEach(el => el.style.display = isStr ? "" : "none");
+                    yamlModalBody.querySelectorAll(`[data-extra="array"][data-idx="${idx}"]`).forEach(el => el.style.display = isArr ? "" : "none");
+                });
+            });
+        }
+
+        function collectModalEdits() {
+            const edits = {};
+            yamlModalBody.querySelectorAll(".yamlFieldRow").forEach(row => {
+                const idx = row.getAttribute("data-yaml-idx");
+                const path = row.getAttribute("data-yaml-path");
+                const get = (field) => {
+                    const el = row.querySelector(`[data-field="${field}"][data-idx="${idx}"]`);
+                    if (!el) return "";
+                    if (el.type === "checkbox") return el.checked;
+                    return (el.value || "").trim();
+                };
+                edits[path] = {
+                    type: get("type"),
+                    label: get("label"),
+                    help: get("help"),
+                    hint: get("hint"),
+                    required: get("required"),
+                    pattern: get("pattern"),
+                    enumStr: get("enum"),
+                    minInclusive: get("minInclusive"),
+                    maxInclusive: get("maxInclusive"),
+                    minLength: get("minLength"),
+                    maxLength: get("maxLength"),
+                    minItems: get("minItems"),
+                    maxItems: get("maxItems"),
+                    uniqueItems: get("uniqueItems"),
+                };
+            });
+            return edits;
+        }
+
+        function generateYamlFromModal() {
+            const edits = collectModalEdits();
+            if (!schemaData?.properties || !Object.keys(schemaData.properties).length) return "";
+
+            const namedTypes = [];
+            const metadataLines = [];
+            metadataLines.push("# Generated metadata.yaml");
+            metadataLines.push("# See docs for field type reference and customization options.");
+            metadataLines.push("");
+
+            const bodyLines = [];
+            for (const [fieldName, fieldDef] of Object.entries(schemaData.properties)) {
+                const result = buildYamlLinesFromEdits(fieldName, fieldDef, fieldName, 4, namedTypes, edits);
+                bodyLines.push(...result.lines);
+            }
+
+            if (namedTypes.length) {
+                metadataLines.push(...namedTypes);
+                metadataLines.push("");
+            }
+
+            metadataLines.push("Metadata:");
+            metadataLines.push("  properties:");
+            metadataLines.push(...bodyLines);
+
+            return metadataLines.join("\n") + "\n";
+        }
+
+        function buildYamlLinesFromEdits(fieldName, fieldDef, path, indent, namedTypes, edits) {
+            const lines = [];
+            const pad = " ".repeat(indent);
+            const type = typeOfDef(fieldDef);
+            const ed = edits[path] || {};
+
+            const effType = ed.type || jsonTypeToYamlType(type);
+            const effLabel = ed.label ?? getLabel(fieldDef, "");
+            const effHelp = ed.help ?? getDesc(fieldDef);
+            const effHint = ed.hint ?? getTooltip(fieldDef);
+            const effReq = ed.required ?? getReq(fieldDef);
+            const effPattern = ed.pattern ?? (fieldDef?.pattern || "");
+            const effEnumStr = ed.enumStr ?? "";
+            const effEnums = effEnumStr ? effEnumStr.split(",").map(s => s.trim()).filter(Boolean) : (getEnums(fieldDef) || []);
+            const effMinInc = ed.minInclusive ?? "";
+            const effMaxInc = ed.maxInclusive ?? "";
+            const effMinLen = ed.minLength ?? "";
+            const effMaxLen = ed.maxLength ?? "";
+            const effMinItems = ed.minItems ?? "";
+            const effMaxItems = ed.maxItems ?? "";
+            const effUniqueItems = ed.uniqueItems ?? false;
+
+            function appendCommonProps(p) {
+                if (effLabel) {
+                    lines.push(`${p}  label:`);
+                    lines.push(`${p}    en: ${yamlEscape(effLabel)}`);
+                }
+                if (effHelp) {
+                    lines.push(`${p}  help:`);
+                    lines.push(`${p}    en: ${yamlEscape(effHelp)}`);
+                }
+                if (effHint) {
+                    lines.push(`${p}  hint:`);
+                    lines.push(`${p}    en: ${yamlEscape(effHint)}`);
+                }
+                if (effReq) {
+                    lines.push(`${p}  required: true`);
+                }
+                if (effPattern) {
+                    lines.push(`${p}  pattern: ${yamlEscape(effPattern)}`);
+                }
+                if (effEnums.length) {
+                    lines.push(`${p}  enum:`);
+                    for (const v of effEnums) lines.push(`${p}    - ${yamlEscape(v)}`);
+                }
+                if (NUMERIC_TYPES.has(effType)) {
+                    if (effMinInc !== "") lines.push(`${p}  min_inclusive: ${effMinInc}`);
+                    if (effMaxInc !== "") lines.push(`${p}  max_inclusive: ${effMaxInc}`);
+                }
+                if (STRING_TYPES.has(effType)) {
+                    if (effMinLen !== "") lines.push(`${p}  min_length: ${effMinLen}`);
+                    if (effMaxLen !== "") lines.push(`${p}  max_length: ${effMaxLen}`);
+                }
+            }
+
+            if (type === "object" || (fieldDef && fieldDef.properties)) {
+                const typeName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+                if (indent > 0) {
+                    lines.push(`${pad}${fieldName}:`);
+                    lines.push(`${pad}  type: ${typeName}`);
+                    appendCommonProps(pad);
+                }
+                const typeLines = [];
+                typeLines.push(`${typeName}:`);
+                typeLines.push(`  type: object`);
+                typeLines.push(`  properties:`);
+                const children = fieldDef?.properties && typeof fieldDef.properties === "object" ? Object.entries(fieldDef.properties) : [];
+                for (const [childName, childDef] of children) {
+                    const childPath = path ? `${path}.${childName}` : childName;
+                    const childResult = buildYamlLinesFromEdits(childName, childDef, childPath, 4, namedTypes, edits);
+                    typeLines.push(...childResult.lines);
+                }
+                if (!children.length) typeLines.push(`    # (no properties defined)`);
+                namedTypes.push(typeLines.join("\n"));
+                return {lines, namedTypes};
+            }
+
+            if (type === "array" || fieldDef?.items) {
+                const itemDef = fieldDef.items || {type: "string"};
+                const itemType = typeOfDef(itemDef);
+                lines.push(`${pad}${fieldName}:`);
+
+                if (itemType === "object" || (itemDef && itemDef.properties)) {
+                    const typeName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/s$/, "") + "Item";
+                    lines.push(`${pad}  type: ${typeName}[]`);
+                    appendCommonProps(pad);
+                    if (effMinItems !== "") lines.push(`${pad}  min_items: ${effMinItems}`);
+                    if (effMaxItems !== "") lines.push(`${pad}  max_items: ${effMaxItems}`);
+                    if (effUniqueItems) lines.push(`${pad}  unique_items: true`);
+                    const typeLines = [];
+                    typeLines.push(`${typeName}:`);
+                    typeLines.push(`  type: object`);
+                    typeLines.push(`  properties:`);
+                    const children = itemDef?.properties && typeof itemDef.properties === "object" ? Object.entries(itemDef.properties) : [];
+                    for (const [childName, childDef] of children) {
+                        const childPath = path ? `${path}[].${childName}` : `${fieldName}[].${childName}`;
+                        const childResult = buildYamlLinesFromEdits(childName, childDef, childPath, 4, namedTypes, edits);
+                        typeLines.push(...childResult.lines);
+                    }
+                    if (!children.length) typeLines.push(`    # (no properties defined)`);
+                    namedTypes.push(typeLines.join("\n"));
+                } else {
+                    lines.push(`${pad}  type: ${effType.endsWith("[]") ? effType : effType + "[]"}`);
+                    appendCommonProps(pad);
+                    if (effMinItems !== "") lines.push(`${pad}  min_items: ${effMinItems}`);
+                    if (effMaxItems !== "") lines.push(`${pad}  max_items: ${effMaxItems}`);
+                    if (effUniqueItems) lines.push(`${pad}  unique_items: true`);
+                }
+                return {lines, namedTypes};
+            }
+
+            /* Primitive field */
+            lines.push(`${pad}${fieldName}:`);
+            lines.push(`${pad}  type: ${effType}`);
+            appendCommonProps(pad);
+
+            return {lines, namedTypes};
+        }
+
         btnDownloadMetadataYaml?.addEventListener("click", () => {
             if (!schemaData) {
                 toast("<b>Nothing to generate:</b> create or load a schema first.");
                 return;
             }
-            const yamlText = generateMetadataYaml();
-            if (!yamlText) {
+            if (!schemaData.properties || !Object.keys(schemaData.properties).length) {
                 toast("<b>Nothing to generate:</b> schema has no fields.");
                 return;
             }
-            const fallback = (exportNameInput.value || '').trim() || (elLoaded.textContent && elLoaded.textContent !== "none" ? elLoaded.textContent.replace(/\.[^/.]+$/, "") : "schema") || "schema";
-            downloadText(`${fallback.replace(/\.json$/i, '')}_metadata.yaml`, yamlText, "text/yaml;charset=utf-8");
-            toast("Generated metadata YAML.");
+            openYamlModal();
         });
 
         btnAddTop.addEventListener("click", () => {
