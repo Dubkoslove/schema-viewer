@@ -4,6 +4,7 @@ Viewer and editor for json schemas
 
 ## Features:
 - Dark / Ligh themes
+- Import schema
 - Export JSON with custom name - JSON is not persisted on disk until export!
 - Change position of the field in schema (Drag & Drop)
 - Display Raw JSON - Any field view
