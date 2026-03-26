@@ -12,4 +12,4 @@ Viewer and editor for json schemas
 - Map to datacite - Field edit form
 - Generate datacite mapping script code in python - Navbar
 - Generate random test json values in schema - Navbar
-- Generate NRP metadata.yaml template ready for adjusting and editing - Navbar
+- Generate NRP metadata.yaml template ready for adjusting and editing - Navbar (edit and search)
