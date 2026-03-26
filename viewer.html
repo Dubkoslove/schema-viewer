@@ -245,7 +245,7 @@
             margin: 0 auto;
             display: grid;
             gap: 14px;
-            grid-template-columns: 360px 1fr;
+            grid-template-columns: 4fr 6fr;
         }
 
         @media (max-width: 1060px) {
@@ -419,6 +419,12 @@
             white-space: nowrap;
             margin-top: 1px;
             flex: 0 0 auto;
+        }
+
+        .t.req {
+            border-color: color-mix(in srgb, var(--bad) 30%, transparent);
+            background: color-mix(in srgb, var(--bad) 12%, transparent);
+            color: color-mix(in srgb, var(--bad) 75%, var(--text));
         }
 
         .children {
@@ -1089,6 +1095,10 @@
                 <button class="btn" id="downloadRandomTestJson">Generate random test JSON</button>
                 <span class="smallHelp">Creates a sample JSON document with all fields from your current custom schema and fills it with random test values.</span>
             </div>
+            <div class="bar" style="margin-top:10px;">
+                <button class="btn" id="downloadMetadataYaml">Generate metadata YAML</button>
+                <span class="smallHelp">Generates a metadata.yaml file from your current custom schema, ready for use in NRP model definitions.</span>
+            </div>
         </div>
     </div>
 </header>
@@ -1154,6 +1164,7 @@
         const btnCheckDatacite = document.getElementById('checkDataciteMappings');
         const btnDownloadDataciteScript = document.getElementById('downloadDataciteScript');
         const btnDownloadRandomTestJson = document.getElementById('downloadRandomTestJson');
+        const btnDownloadMetadataYaml = document.getElementById('downloadMetadataYaml');
 
         /* ── Header collapse toggle ── */
         const headerCollapsible = document.getElementById('headerCollapsible');
@@ -2142,20 +2153,40 @@
                     row.appendChild(k);
                     row.appendChild(t);
 
+                    if (n.required) {
+                        const req = document.createElement("div");
+                        req.className = "t req";
+                        req.textContent = "required";
+                        row.appendChild(req);
+                    }
+
                     row.draggable = n.name !== "(root)" && n.name !== "(items)";
 
+                    let clickTimer = null;
+
                     row.addEventListener("click", () => {
-                        if (fieldDirty && activeTab === "view") {
-                            const ok = confirm("This field has unsaved changes. Switch anyway?");
-                            if (!ok) return;
-                        }
-                        setFieldDirty(false);
+                        if (clickTimer) clearTimeout(clickTimer);
+                        clickTimer = setTimeout(() => {
+                            clickTimer = null;
+                            if (fieldDirty && activeTab === "view") {
+                                const ok = confirm("This field has unsaved changes. Switch anyway?");
+                                if (!ok) return;
+                            }
+                            setFieldDirty(false);
+                            activeId = n.id;
+                            ensureExpandedTo(activeId);
+                            renderTree(elSearch.value);
+                            renderContent();
+                        }, 250);
+                    });
+
+                    row.addEventListener("dblclick", () => {
+                        if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
                         activeId = n.id;
                         ensureExpandedTo(activeId);
                         renderTree(elSearch.value);
                         renderContent();
-                        const activeEl = elTree.querySelector(".node.active");
-                        if (activeEl) activeEl.scrollIntoView({block: "center"});
+                        openFieldModal("edit", {nodeId: n.id});
                     });
 
                     row.addEventListener("dragstart", (ev) => {
@@ -2274,6 +2305,7 @@
         <div class="childCard" data-nav="${esc(ch.id)}">
           <div style="flex:1; min-width:0"><div class="cname">${esc(ch.name)}</div><div class="clabel">${esc(ch.label || "")}</div></div>
           <div class="t">${esc(ch.type)}</div>
+          ${ch.required ? `<div class="t req">required</div>` : ``}
         </div>
       `).join("")}
     ` : `<div class="childrenTitle">Sub-fields</div><div class="empty" style="padding:12px">No nested fields.</div>`;
@@ -3125,6 +3157,183 @@ if __name__ == "__main__":
             return out;
         }
 
+        /* ── Metadata YAML generation ── */
+
+        function jsonTypeToYamlType(jsonType) {
+            switch (jsonType) {
+                case "string":   return "keyword";
+                case "integer":  return "int";
+                case "number":   return "double";
+                case "boolean":  return "boolean";
+                case "object":   return "object";
+                case "array":    return "array";
+                default:         return jsonType || "keyword";
+            }
+        }
+
+        function yamlEscape(str) {
+            if (!str) return '""';
+            if (/[:#\[\]{}&*!|>'"%@`,?\-]/.test(str) || /^\s|\s$/.test(str) || str === "true" || str === "false" || str === "null" || /^\d+$/.test(str)) {
+                return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+            }
+            return str;
+        }
+
+        function buildYamlLines(fieldName, fieldDef, indent, namedTypes) {
+            const lines = [];
+            const pad = " ".repeat(indent);
+            const type = typeOfDef(fieldDef);
+            const label = getLabel(fieldDef, "");
+            const desc = getDesc(fieldDef);
+            const tooltip = getTooltip(fieldDef);
+
+            if (type === "object" || (fieldDef && fieldDef.properties)) {
+                /* Named type: extract as top-level definition */
+                const typeName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+                if (indent > 0) {
+                    /* Reference to named type */
+                    lines.push(`${pad}${fieldName}:`);
+                    lines.push(`${pad}  type: ${typeName}`);
+                    if (label) {
+                        lines.push(`${pad}  label:`);
+                        lines.push(`${pad}    en: ${yamlEscape(label)}`);
+                    }
+                    if (desc) {
+                        lines.push(`${pad}  help:`);
+                        lines.push(`${pad}    en: ${yamlEscape(desc)}`);
+                    }
+                    if (tooltip) {
+                        lines.push(`${pad}  hint:`);
+                        lines.push(`${pad}    en: ${yamlEscape(tooltip)}`);
+                    }
+                }
+
+                /* Build the named type definition */
+                const typeLines = [];
+                typeLines.push(`${typeName}:`);
+                typeLines.push(`  type: object`);
+                typeLines.push(`  properties:`);
+                const children = fieldDef?.properties && typeof fieldDef.properties === "object" ? Object.entries(fieldDef.properties) : [];
+                for (const [childName, childDef] of children) {
+                    const childResult = buildYamlLines(childName, childDef, 4, namedTypes);
+                    typeLines.push(...childResult.lines);
+                }
+                if (!children.length) {
+                    typeLines.push(`    # (no properties defined)`);
+                }
+                namedTypes.push(typeLines.join("\n"));
+                return {lines, namedTypes};
+            }
+
+            if (type === "array" || fieldDef?.items) {
+                const itemDef = fieldDef.items || {type: "string"};
+                const itemType = typeOfDef(itemDef);
+
+                lines.push(`${pad}${fieldName}:`);
+
+                if (itemType === "object" || (itemDef && itemDef.properties)) {
+                    const typeName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/s$/, "") + "Item";
+                    lines.push(`${pad}  type: ${typeName}[]`);
+                    if (label) {
+                        lines.push(`${pad}  label:`);
+                        lines.push(`${pad}    en: ${yamlEscape(label)}`);
+                    }
+                    if (desc) {
+                        lines.push(`${pad}  help:`);
+                        lines.push(`${pad}    en: ${yamlEscape(desc)}`);
+                    }
+                    if (tooltip) {
+                        lines.push(`${pad}  hint:`);
+                        lines.push(`${pad}    en: ${yamlEscape(tooltip)}`);
+                    }
+                    /* Build the named type for array items */
+                    const typeLines = [];
+                    typeLines.push(`${typeName}:`);
+                    typeLines.push(`  type: object`);
+                    typeLines.push(`  properties:`);
+                    const children = itemDef?.properties && typeof itemDef.properties === "object" ? Object.entries(itemDef.properties) : [];
+                    for (const [childName, childDef] of children) {
+                        const childResult = buildYamlLines(childName, childDef, 4, namedTypes);
+                        typeLines.push(...childResult.lines);
+                    }
+                    if (!children.length) {
+                        typeLines.push(`    # (no properties defined)`);
+                    }
+                    namedTypes.push(typeLines.join("\n"));
+                } else {
+                    lines.push(`${pad}  type: ${jsonTypeToYamlType(itemType)}[]`);
+                    if (label) {
+                        lines.push(`${pad}  label:`);
+                        lines.push(`${pad}    en: ${yamlEscape(label)}`);
+                    }
+                    if (desc) {
+                        lines.push(`${pad}  help:`);
+                        lines.push(`${pad}    en: ${yamlEscape(desc)}`);
+                    }
+                    if (tooltip) {
+                        lines.push(`${pad}  hint:`);
+                        lines.push(`${pad}    en: ${yamlEscape(tooltip)}`);
+                    }
+                }
+                return {lines, namedTypes};
+            }
+
+            /* Primitive field */
+            lines.push(`${pad}${fieldName}:`);
+            lines.push(`${pad}  type: ${jsonTypeToYamlType(type)}`);
+            if (label) {
+                lines.push(`${pad}  label:`);
+                lines.push(`${pad}    en: ${yamlEscape(label)}`);
+            }
+            if (desc) {
+                lines.push(`${pad}  help:`);
+                lines.push(`${pad}    en: ${yamlEscape(desc)}`);
+            }
+            if (tooltip) {
+                lines.push(`${pad}  hint:`);
+                lines.push(`${pad}    en: ${yamlEscape(tooltip)}`);
+            }
+
+            /* Enum values */
+            const enums = getEnums(fieldDef);
+            if (Array.isArray(enums) && enums.length) {
+                lines.push(`${pad}  enum:`);
+                for (const v of enums) {
+                    lines.push(`${pad}    - ${yamlEscape(String(v))}`);
+                }
+            }
+
+            return {lines, namedTypes};
+        }
+
+        function generateMetadataYaml() {
+            if (!schemaData || !schemaData.properties || !Object.keys(schemaData.properties).length) return "";
+
+            const namedTypes = [];
+            const metadataLines = [];
+            metadataLines.push("# Generated metadata.yaml");
+            metadataLines.push("# See docs for field type reference and customization options.");
+            metadataLines.push("");
+
+            const bodyLines = [];
+            for (const [fieldName, fieldDef] of Object.entries(schemaData.properties)) {
+                const result = buildYamlLines(fieldName, fieldDef, 4, namedTypes);
+                bodyLines.push(...result.lines);
+            }
+
+            /* Output named types first (objects extracted as top-level definitions) */
+            if (namedTypes.length) {
+                metadataLines.push(...namedTypes);
+                metadataLines.push("");
+            }
+
+            metadataLines.push("Metadata:");
+            metadataLines.push("  properties:");
+            metadataLines.push(...bodyLines);
+
+            return metadataLines.join("\n") + "\n";
+        }
+
         function downloadText(filename, text, mimeType = "text/plain;charset=utf-8") {
             const blob = new Blob([text], {type: mimeType});
             const url = URL.createObjectURL(blob);
@@ -3317,6 +3526,21 @@ if __name__ == "__main__":
             const fallback = (exportNameInput.value || '').trim() || (elLoaded.textContent && elLoaded.textContent !== "none" ? elLoaded.textContent.replace(/\.[^/.]+$/, "") : "schema") || "schema";
             downloadJson(`${fallback.replace(/\.json$/i, '')}_random_test.json`, JSON.stringify(randomDoc, null, 2));
             toast("Generated random test JSON.");
+        });
+
+        btnDownloadMetadataYaml?.addEventListener("click", () => {
+            if (!schemaData) {
+                toast("<b>Nothing to generate:</b> create or load a schema first.");
+                return;
+            }
+            const yamlText = generateMetadataYaml();
+            if (!yamlText) {
+                toast("<b>Nothing to generate:</b> schema has no fields.");
+                return;
+            }
+            const fallback = (exportNameInput.value || '').trim() || (elLoaded.textContent && elLoaded.textContent !== "none" ? elLoaded.textContent.replace(/\.[^/.]+$/, "") : "schema") || "schema";
+            downloadText(`${fallback.replace(/\.json$/i, '')}_metadata.yaml`, yamlText, "text/yaml;charset=utf-8");
+            toast("Generated metadata YAML.");
         });
 
         btnAddTop.addEventListener("click", () => {
